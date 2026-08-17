@@ -12,7 +12,7 @@ import { Celebration } from './Celebration'
 import { Rewards } from './Rewards'
 import { Lobby } from './Lobby'
 import { Settings } from './Settings'
-import { applyBoardTheme } from './themes'
+import { applyBackgroundTheme, applyBoardTheme } from './themes'
 import { useOnlineStore } from '@/state/onlineStore'
 
 const OPPONENTS: { id: AiLevel | 'solo'; label: string }[] = [
@@ -231,12 +231,17 @@ export function App(): JSX.Element {
   const onlineSetup = useOnlineStore((s) => s.setup)
   const onlineActive = onlineSetup !== null && onlineStatus === 'playing'
   const boardTheme = useProfileStore((s) => s.boardTheme)
+  const background = useProfileStore((s) => s.background)
 
   // Themes paint CSS variables on the document, so this runs outside React's
-  // tree and has to be reapplied whenever the choice changes.
+  // tree and has to be reapplied whenever a choice changes.
   useEffect(() => {
     applyBoardTheme(boardTheme)
   }, [boardTheme])
+
+  useEffect(() => {
+    applyBackgroundTheme(background)
+  }, [background])
 
   const roster = (): PlayerConfig[] => {
     const you: PlayerConfig = { id: 'p1', name: 'You' }

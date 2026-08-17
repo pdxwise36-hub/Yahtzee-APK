@@ -17,6 +17,7 @@
   --meter-fill: #f2a12a;
   --meter-track: rgba(107, 66, 15, 0.35);
   --meter-core: #a9741f;
+  --board-accent: #e07d1f;
   --tile: #e8453c;
   --tile-rim: #ffffff;
   --slot: #fdf5e2;
@@ -335,7 +336,7 @@ body {
   display: block;
   font-size: 1.05rem;
   line-height: 1.1;
-  color: #e07d1f;
+  color: var(--board-accent);
   text-shadow: 0 1px 0 rgba(255, 255, 255, 0.5);
 }
 
@@ -1292,4 +1293,14 @@ body {
   font-weight: 800;
   font-variant-numeric: tabular-nums;
   color: var(--gold);
+}
+
+/* Background swatches are lighter than board ones, so their labels need the
+   heavier shadow to stay readable. */
+.swatch--sky {
+  height: 52px;
+}
+
+.swatch--sky span {
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.9);
 }

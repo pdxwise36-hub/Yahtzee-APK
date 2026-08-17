@@ -6,6 +6,7 @@ import {
   averageScore,
   newlyUnlocked,
   unlockedSkins,
+  REWARDS_GATE_CONTENT,
   type GameSummary,
   type Stats,
 } from '@/progression/achievements'
@@ -91,13 +92,15 @@ describe('daily streaks', () => {
 })
 
 describe('achievements and rewards', () => {
-  it('starts with only the default dice', () => {
-    expect(unlockedSkins(EMPTY_STATS)).toEqual(['ivory'])
+  it('offers every dice colour while rewards do not gate content', () => {
+    expect(REWARDS_GATE_CONTENT).toBe(false)
+    expect(unlockedSkins(EMPTY_STATS)).toHaveLength(Object.keys(DICE_SKINS).length)
   })
 
-  it('unlocks a skin when its target is reached', () => {
+  it('still records achievements even though nothing is locked', () => {
+    // The ladder stays intact so gating can be switched back on.
     const stats: Stats = { ...EMPTY_STATS, gamesPlayed: 5 }
-    expect(unlockedSkins(stats)).toContain('midnight')
+    expect(newlyUnlocked(EMPTY_STATS, stats).map((a) => a.id)).toContain('regular')
   })
 
   it('reports only what this game unlocked', () => {
@@ -123,7 +126,7 @@ describe('achievements and rewards', () => {
     }
   })
 
-  it('rewards every dice skin through some achievement', () => {
+  it('would restore a ladder from the default dice if gating returned', () => {
     const maxed: Stats = {
       ...EMPTY_STATS,
       gamesPlayed: 99, gamesWon: 99, bestScore: 400, yahtzees: 99,

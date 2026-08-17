@@ -164,8 +164,19 @@ export function unlockedAchievements(stats: Stats): Achievement[] {
   return ACHIEVEMENTS.filter((a) => isUnlocked(a, stats))
 }
 
-/** Dice skins the player has earned. Ivory is always available. */
+/** Whether rewards gate the content they name.
+ *
+ *  Off for now: locking dice behind achievements suits an audience that has
+ *  to be given a reason to keep playing, and gets in the way of a couple of
+ *  people who just want to pick a colour. Achievements are still tracked and
+ *  still shown, so turning this back on restores the ladder intact. */
+export const REWARDS_GATE_CONTENT = false
+
+/** Dice skins the player may choose from. */
 export function unlockedSkins(stats: Stats): string[] {
+  if (!REWARDS_GATE_CONTENT) {
+    return ['ivory', ...ACHIEVEMENTS.flatMap((a) => (a.reward.kind === 'diceSkin' ? [a.reward.id] : []))]
+  }
   const skins = ['ivory']
   for (const achievement of unlockedAchievements(stats)) {
     if (achievement.reward.kind === 'diceSkin') skins.push(achievement.reward.id)

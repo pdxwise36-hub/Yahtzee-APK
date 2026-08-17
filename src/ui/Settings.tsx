@@ -6,7 +6,7 @@ import {
   useProfileStore,
   type DiceSpeed,
 } from '@/state/profileStore'
-import { BOARD_THEMES } from './themes'
+import { BACKGROUND_THEMES, BOARD_THEMES } from './themes'
 
 /** Everything the player can change about how the game looks and feels,
  *  gathered in one place. These used to sit on the menu alongside the things
@@ -16,9 +16,11 @@ export function Settings({ onBack }: { onBack: () => void }): JSX.Element {
   const skin = useProfileStore((s) => s.selectedSkin)
   const speed = useProfileStore((s) => s.diceSpeed)
   const theme = useProfileStore((s) => s.boardTheme)
+  const background = useProfileStore((s) => s.background)
   const selectSkin = useProfileStore((s) => s.selectSkin)
   const setSpeed = useProfileStore((s) => s.setDiceSpeed)
   const setTheme = useProfileStore((s) => s.setBoardTheme)
+  const setBackground = useProfileStore((s) => s.setBackground)
 
   const owned = new Set(unlockedSkins(stats))
   const earned = ACHIEVEMENTS.filter((a) => isUnlocked(a, stats)).length
@@ -45,8 +47,27 @@ export function Settings({ onBack }: { onBack: () => void }): JSX.Element {
               className={`swatch ${theme === option.id ? 'is-selected' : ''}`}
               style={{ background: option.swatch }}
               onClick={() => setTheme(option.id)}
-              aria-label={option.name}
+              aria-label={`${option.name} board`}
               aria-pressed={theme === option.id}
+            >
+              <span>{option.name}</span>
+            </button>
+          ))}
+        </div>
+      </section>
+
+      <section className="settings__group">
+        <h3>Background</h3>
+        <div className="swatches">
+          {BACKGROUND_THEMES.map((option) => (
+            <button
+              key={option.id}
+              type="button"
+              className={`swatch swatch--sky ${background === option.id ? 'is-selected' : ''}`}
+              style={{ background: option.swatch }}
+              onClick={() => setBackground(option.id)}
+              aria-label={`${option.name} background`}
+              aria-pressed={background === option.id}
             >
               <span>{option.name}</span>
             </button>
@@ -70,7 +91,7 @@ export function Settings({ onBack }: { onBack: () => void }): JSX.Element {
                 style={{ background: option.body, color: option.pip }}
                 disabled={!unlocked}
                 onClick={() => selectSkin(option.id)}
-                aria-label={unlocked ? option.name : `${option.name}, locked`}
+                aria-label={unlocked ? `${option.name} dice` : `${option.name} dice, locked`}
               >
                 {unlocked ? '⬤' : '🔒'}
               </button>

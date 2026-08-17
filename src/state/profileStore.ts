@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import { DEFAULT_BOARD_THEME } from '@/ui/themes'
+import { DEFAULT_BACKGROUND, DEFAULT_BOARD_THEME } from '@/ui/themes'
 import {
   EMPTY_STATS,
   applyGame,
@@ -34,6 +34,7 @@ interface StoredProfile {
   selectedSkin: string
   diceSpeed: DiceSpeed
   boardTheme: string
+  background: string
 }
 
 /** Reading a profile must never take the game down: a corrupted or
@@ -46,6 +47,7 @@ function loadProfile(): StoredProfile {
     selectedSkin: 'ivory',
     diceSpeed: 'normal',
     boardTheme: DEFAULT_BOARD_THEME,
+    background: DEFAULT_BACKGROUND,
   }
   try {
     const raw = localStorage.getItem(STORAGE_KEY)
@@ -58,6 +60,7 @@ function loadProfile(): StoredProfile {
         ? parsed.diceSpeed
         : 'normal',
       boardTheme: parsed.boardTheme ?? DEFAULT_BOARD_THEME,
+      background: parsed.background ?? DEFAULT_BACKGROUND,
     }
   } catch {
     return fallback
@@ -78,12 +81,14 @@ export interface ProfileStore {
   selectedSkin: string
   diceSpeed: DiceSpeed
   boardTheme: string
+  background: string
   /** Achievements unlocked by the most recent game, for the reward popup. */
   pendingRewards: Achievement[]
   recordGame: (summary: GameSummary) => void
   selectSkin: (skinId: string) => void
   setDiceSpeed: (speed: DiceSpeed) => void
   setBoardTheme: (themeId: string) => void
+  setBackground: (themeId: string) => void
   dismissRewards: () => void
   resetProfile: () => void
 }
@@ -96,6 +101,7 @@ export const useProfileStore = create<ProfileStore>((set, get) => {
     selectedSkin: initial.selectedSkin,
     diceSpeed: initial.diceSpeed,
     boardTheme: initial.boardTheme,
+    background: initial.background,
     pendingRewards: [],
 
     recordGame: (summary) => {
@@ -124,6 +130,11 @@ export const useProfileStore = create<ProfileStore>((set, get) => {
       set({ boardTheme: themeId })
     },
 
+    setBackground: (themeId) => {
+      persist(get(), { background: themeId })
+      set({ background: themeId })
+    },
+
     dismissRewards: () => set({ pendingRewards: [] }),
 
     resetProfile: () => {
@@ -141,6 +152,7 @@ function persist(current: ProfileStore, changes: Partial<StoredProfile>): void {
     selectedSkin: current.selectedSkin,
     diceSpeed: current.diceSpeed,
     boardTheme: current.boardTheme,
+    background: current.background,
     ...changes,
   })
 }
