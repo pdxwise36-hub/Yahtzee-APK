@@ -18,6 +18,10 @@ interface CellProps {
   players: readonly PlayerState[]
   /** Which player may actually be scored into right now. */
   activePlayer: number
+  /** The seat belonging to this device. Only that column is drawn as boxes;
+   *  an opponent's scores are written straight onto the board, as they are on
+   *  the printed card. */
+  ownSeat: number
   column: number
   preview: number | undefined
   legal: boolean
@@ -33,6 +37,7 @@ function Cell({
   badge,
   players,
   activePlayer,
+  ownSeat,
   column,
   preview,
   legal,
@@ -49,6 +54,21 @@ function Cell({
       {players.map((player, index) => {
         const filled = player.cards[column]?.[category]
         const isFilled = filled !== undefined
+
+        if (index !== ownSeat) {
+          return (
+            <span
+              key={player.id}
+              className="tally"
+              aria-label={`${CATEGORY_LABELS[category]}, ${player.name}${
+                isFilled ? `, scored ${filled}` : ', not scored'
+              }`}
+            >
+              {isFilled ? filled : ''}
+            </span>
+          )
+        }
+
         const isActive = index === activePlayer
         const available = isActive && interactive && !isFilled && legal && preview !== undefined
         const isZero = available && preview === 0
@@ -62,7 +82,6 @@ function Cell({
               isFilled ? 'is-filled' : '',
               available ? 'is-available' : '',
               isZero ? 'is-zero' : '',
-              isActive ? '' : 'is-opponent',
             ].filter(Boolean).join(' ')}
             disabled={!available}
             onClick={() => onPick(category)}
@@ -101,9 +120,13 @@ export function Scorecard(): JSX.Element | null {
   // unbroken across the full width of the board.
   const rows = LOWER_CATEGORIES.map((lower, i) => ({ upper: UPPER_CATEGORIES[i], lower }))
 
+  // Online this device owns its own seat; offline the human is always first.
+  const ownSeat = match ? Math.max(0, match.seat) : players.findIndex((p) => !p.isAI)
+
   const shared = {
     players,
     activePlayer: game.currentPlayer,
+    ownSeat: ownSeat < 0 ? 0 : ownSeat,
     column: activeColumn,
     interactive,
     onPick: score,

@@ -318,14 +318,18 @@ body {
 
 /* A box worth nothing is still legal to take, but should not compete for
    attention with one that scores. */
-/* An opponent's column is a read-out, not a control: visible but clearly not
-   yours to tap. */
-.slot.is-opponent {
-  color: #8a6b3c;
-  background: linear-gradient(180deg, #f0e4c6, #e3d3ae);
-  border-color: rgba(160, 122, 58, 0.6);
-  box-shadow: inset 0 2px 3px rgba(120, 88, 36, 0.25);
-  animation: none;
+/* An opponent's score is written onto the board rather than into a box, as on
+   the printed card. Only your own column is something to tap. */
+.tally {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: calc(var(--slot-w) * 0.86);
+  font-size: clamp(0.95rem, 3.8vw, 1.25rem);
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  color: var(--label);
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.25);
 }
 
 .slot.is-zero {
