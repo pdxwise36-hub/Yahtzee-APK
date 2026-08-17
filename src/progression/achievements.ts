@@ -147,6 +147,13 @@ export const ACHIEVEMENTS: Achievement[] = [
     progress: (s) => ({ current: s.upperBonuses, target: 25 }),
   },
   {
+    id: 'champion',
+    name: 'Champion',
+    description: 'Win 25 games',
+    reward: { kind: 'diceSkin', id: 'cheeky' },
+    progress: (s) => ({ current: s.gamesWon, target: 25 }),
+  },
+  {
     id: 'completionist',
     name: 'Completionist',
     description: 'Play every game variant',

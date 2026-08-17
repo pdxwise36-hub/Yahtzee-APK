@@ -134,9 +134,9 @@ describe('achievements and rewards', () => {
       variantsPlayed: ['standard', 'triple', 'sixDice'],
     }
     expect(unlockedSkins(maxed).sort()).toEqual([
-      'amethyst', 'bubblegum', 'coral', 'gold', 'ivory', 'jade',
+      'amethyst', 'bubblegum', 'cheeky', 'coral', 'gold', 'ivory', 'jade',
       'midnight', 'neon', 'oak', 'ruby', 'sapphire', 'silver',
-    ])
+    ].sort())
   })
 })
 

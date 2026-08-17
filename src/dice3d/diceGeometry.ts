@@ -90,6 +90,10 @@ export function createRoundedDieGeometry(size = 1, radius = 0.12, segments = 5):
   return geometry
 }
 
+/** What a pip is drawn as. Skins were colour-only until novelty dice needed
+ *  their spots to be something other than spots. */
+export type PipShape = 'dot' | 'cheeky'
+
 export interface DiceSkin {
   id: string
   name: string
@@ -99,6 +103,9 @@ export interface DiceSkin {
   edge: string
   roughness: number
   metalness: number
+  pipShape?: PipShape
+  /** Paints wood grain into the face, for the dice that are meant to be wood. */
+  grain?: boolean
 }
 
 export const DICE_SKINS: Record<string, DiceSkin> = {
@@ -150,6 +157,11 @@ export const DICE_SKINS: Record<string, DiceSkin> = {
     id: 'oak', name: 'Oak', body: '#a9713c', pip: '#f7e8d2',
     edge: '#6d4520', roughness: 0.55, metalness: 0.02,
   },
+  cheeky: {
+    id: 'cheeky', name: 'Cheeky', body: '#e8cfa0', pip: '#2b1c0c',
+    edge: '#b8975f', roughness: 0.62, metalness: 0.01,
+    pipShape: 'cheeky', grain: true,
+  },
 }
 
 /** Blend two hex colours. Used to shade pips without hand-listing variants. */
@@ -197,7 +209,19 @@ function drawFace(value: DieValue, skin: DiceSkin, resolution: number): HTMLCanv
   ctx.fillRect(0, 0, resolution, resolution)
   ctx.globalAlpha = 1
 
+  if (skin.grain) drawGrain(ctx, resolution, skin.edge)
+
   const pipRadius = resolution * (value === 1 ? 0.125 : 0.092)
+
+  if (skin.pipShape === 'cheeky') {
+    PIP_LAYOUT[value].forEach(([x, y], index) => {
+      // Each one set at its own angle, as they are on the real thing.
+      const angle = ((index * 47 + value * 23) % 360) * (Math.PI / 180)
+      drawCheekyPip(ctx, x * resolution, y * resolution, pipRadius * 2.3, angle, skin.pip)
+    })
+    return canvas
+  }
+
   for (const [x, y] of PIP_LAYOUT[value]) {
     const cx = x * resolution
     const cy = y * resolution
@@ -230,10 +254,74 @@ function drawFace(value: DieValue, skin: DiceSkin, resolution: number): HTMLCanv
   return canvas
 }
 
+/** A novelty pip, drawn as a filled silhouette rather than an outline.
+ *  At the size a pip occupies on a die face an outline turns to mush, while a
+ *  solid shape stays readable. */
+function drawCheekyPip(
+  ctx: CanvasRenderingContext2D,
+  cx: number,
+  cy: number,
+  size: number,
+  angle: number,
+  colour: string,
+): void {
+  ctx.save()
+  ctx.translate(cx, cy)
+  ctx.rotate(angle)
+  ctx.scale(size, size)
+  ctx.fillStyle = colour
+
+  // Built from overlapping solids rather than one traced outline: the parts
+  // merge into a single silhouette, and each stays legible at the size a pip
+  // actually occupies, where a fine outline would close up into a smudge.
+  ctx.beginPath()
+  ctx.arc(-0.33, 0.66, 0.3, 0, Math.PI * 2)
+  ctx.fill()
+  ctx.beginPath()
+  ctx.arc(0.33, 0.66, 0.3, 0, Math.PI * 2)
+  ctx.fill()
+
+  ctx.beginPath()
+  ctx.moveTo(-0.2, 0.7)
+  ctx.lineTo(-0.2, -0.4)
+  ctx.lineTo(0.2, -0.4)
+  ctx.lineTo(0.2, 0.7)
+  ctx.closePath()
+  ctx.fill()
+
+  ctx.beginPath()
+  ctx.arc(0, -0.45, 0.33, 0, Math.PI * 2)
+  ctx.fill()
+
+  ctx.restore()
+}
+
+/** Faint wood grain, for the dice meant to look turned rather than moulded. */
+function drawGrain(ctx: CanvasRenderingContext2D, resolution: number, edge: string): void {
+  ctx.save()
+  ctx.globalAlpha = 0.16
+  ctx.strokeStyle = edge
+  ctx.lineWidth = resolution * 0.008
+  for (let i = 0; i < 7; i++) {
+    const y = ((i + 0.5) / 7) * resolution
+    ctx.beginPath()
+    ctx.moveTo(0, y)
+    ctx.bezierCurveTo(
+      resolution * 0.3, y - resolution * 0.035,
+      resolution * 0.7, y + resolution * 0.035,
+      resolution, y,
+    )
+    ctx.stroke()
+  }
+  ctx.restore()
+}
+
 /** The six face materials for a die, in BoxGeometry order. */
 export function createDieMaterials(skin: DiceSkin, resolution = 256): THREE.MeshPhysicalMaterial[] {
+  // Shaped pips carry far more detail than a circle and need the extra pixels.
+  const size = skin.pipShape && skin.pipShape !== 'dot' ? resolution * 2 : resolution
   return FACE_VALUES.map((value) => {
-    const texture = new THREE.CanvasTexture(drawFace(value, skin, resolution))
+    const texture = new THREE.CanvasTexture(drawFace(value, skin, size))
     texture.anisotropy = 8
     texture.colorSpace = THREE.SRGBColorSpace
     return new THREE.MeshPhysicalMaterial({
