@@ -15,6 +15,8 @@ export interface DiceTableOptions {
   container: HTMLElement
   skinId?: string
   quality?: TableQuality
+  /** Animation speed multiplier. 0 skips the throw entirely. */
+  playbackRate?: number
   /** Fired when the player taps a die. Ignored while dice are in motion. */
   onDieTap?: (index: number) => void
 }
@@ -23,8 +25,12 @@ export interface DiceTableOptions {
 const ROW_Z = 0.15
 const ROW_SPACING = DIE_SIZE * 1.34
 const HELD_LIFT = 0.34
-const ARRANGE_MS = 460
-const SETTLE_PAUSE_MS = 190
+const ARRANGE_MS = 380
+const SETTLE_PAUSE_MS = 140
+/** Real dice take about two seconds to settle, which is a long time to wait
+ *  every turn. Playing the recorded throw faster keeps the motion physically
+ *  correct while making the game feel brisk. */
+export const DEFAULT_PLAYBACK_RATE = 1.7
 
 const easeOutCubic = (t: number): number => 1 - Math.pow(1 - t, 3)
 const easeOutBack = (t: number): number => {
@@ -62,6 +68,8 @@ export class DiceTable {
   private wideDistance = 15
   private closeDistance = 10
 
+  private playbackRate = DEFAULT_PLAYBACK_RATE
+
   private quality: TableQuality
   private running = true
   private needsRender = true
@@ -85,6 +93,7 @@ export class DiceTable {
     this.container = options.container
     this.onDieTap = options.onDieTap
     this.quality = options.quality ?? 'high'
+    this.playbackRate = options.playbackRate ?? DEFAULT_PLAYBACK_RATE
     this.skin = DICE_SKINS[options.skinId ?? 'ivory'] as DiceSkin
 
     this.renderer = new THREE.WebGLRenderer({
@@ -257,7 +266,14 @@ export class DiceTable {
         from: [],
       }
       this.needsRender = true
+      // Instant mode resolves the throw without ever drawing the tumble.
+      if (this.playbackRate === 0) this.finishRoll()
     })
+  }
+
+  /** Animation speed. A rate of 0 means throws resolve instantly. */
+  setPlaybackRate(rate: number): void {
+    this.playbackRate = Math.max(0, rate)
   }
 
   /** Skip straight to the settled hand — for reduced-motion users and for the
@@ -299,7 +315,9 @@ export class DiceTable {
   private advanceAnimation(deltaMs: number): void {
     const animation = this.animation
     if (!animation) return
-    animation.elapsed += deltaMs
+    // Scaling elapsed time speeds up the tumble, the settle pause and the
+    // tidy-up together, so the whole sequence stays in proportion.
+    animation.elapsed += deltaMs * this.playbackRate
 
     if (animation.phase === 'tumble') {
       const frame = Math.floor(animation.elapsed / 1000 / FIXED_STEP)

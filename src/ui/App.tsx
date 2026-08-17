@@ -5,7 +5,12 @@ import { dailyKey, dailySeed } from '@/engine/rng'
 import { DICE_SKINS } from '@/dice3d/diceGeometry'
 import { unlockedSkins, averageScore } from '@/progression/achievements'
 import { useGameStore, useTurnView } from '@/state/gameStore'
-import { useProfileStore } from '@/state/profileStore'
+import {
+  DICE_SPEED_LABELS,
+  DICE_SPEED_RATES,
+  useProfileStore,
+  type DiceSpeed,
+} from '@/state/profileStore'
 import { DiceArea } from './DiceArea'
 import { Scorecard } from './Scorecard'
 import { Celebration } from './Celebration'
@@ -48,6 +53,20 @@ const OPPONENTS: { id: AiLevel | 'solo'; label: string }[] = [
   { id: 'expert', label: 'Expert' },
 ]
 
+function SpeedButton({ speed }: { speed: DiceSpeed }): JSX.Element {
+  const current = useProfileStore((s) => s.diceSpeed)
+  const setSpeed = useProfileStore((s) => s.setDiceSpeed)
+  return (
+    <button
+      type="button"
+      className={`opponent opponent--speed ${current === speed ? 'is-selected' : ''}`}
+      onClick={() => setSpeed(speed)}
+    >
+      {DICE_SPEED_LABELS[speed]}
+    </button>
+  )
+}
+
 interface StartProps {
   onStart: (variant: VariantId) => void
   onDaily: () => void
@@ -86,6 +105,12 @@ function StartScreen({ onStart, onDaily, opponent, onOpponent }: StartProps): JS
               {RULE_SETS[id].columns > 1 ? ` · ${RULE_SETS[id].columns} columns` : ''}
             </span>
           </button>
+        ))}
+      </div>
+
+      <div className="opponents" role="group" aria-label="Dice speed">
+        {(Object.keys(DICE_SPEED_RATES) as DiceSpeed[]).map((speed) => (
+          <SpeedButton key={speed} speed={speed} />
         ))}
       </div>
 

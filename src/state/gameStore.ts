@@ -19,7 +19,7 @@ import { generateRoll } from '@/dice3d/physicsRoll'
 import type { DiceTable } from '@/dice3d/DiceTable'
 import { ALL_CATEGORIES } from '@/engine/types'
 import { upperBonus } from '@/engine/scoring'
-import { useProfileStore } from './profileStore'
+import { DICE_SPEED_RATES, useProfileStore } from './profileStore'
 
 export interface GameStore {
   game: GameState | null
@@ -160,15 +160,16 @@ export const useGameStore = create<GameStore>((set, get) => ({
           const die = get().game?.dice[i]
           if (die && die.held !== hold) get().hold(die.id)
         })
-        // A beat so the player can see which dice the opponent kept.
-        await delay(650)
+        // A beat so the player can see which dice the opponent kept, scaled
+        // with the dice speed so a fast game stays fast throughout.
+        await delay(650 / aiPace())
 
         await get().roll()
         state = get().game
         if (!state) return
       }
 
-      await delay(700)
+      await delay(700 / aiPace())
       const move = aiMove(state, rng)
       get().score(move.category, move.column)
     } finally {
@@ -179,6 +180,13 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
 function delay(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms))
+}
+
+/** Pacing multiplier for AI pauses. Instant dice still leave a short beat so
+ *  the opponent's turn does not flash past unread. */
+function aiPace(): number {
+  const rate = DICE_SPEED_RATES[useProfileStore.getState().diceSpeed]
+  return rate === 0 ? 3 : rate
 }
 
 /** Fold a finished game into the player's lifetime record.

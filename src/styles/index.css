@@ -791,3 +791,8 @@ body {
   border-color: #fff;
   transform: translateY(-2px);
 }
+
+.opponent--speed {
+  font-size: 0.78rem;
+  padding: 6px 12px;
+}
