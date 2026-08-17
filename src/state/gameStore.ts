@@ -13,7 +13,8 @@ import {
   type PlayerConfig,
 } from '@/engine/game'
 import type { CategoryId, DieValue, VariantId } from '@/engine/types'
-import { randomSeed } from '@/engine/rng'
+import { createRng, randomSeed } from '@/engine/rng'
+import { aiColumn, aiHolds, aiMove } from '@/ai/autoplay'
 import { generateRoll } from '@/dice3d/physicsRoll'
 import type { DiceTable } from '@/dice3d/DiceTable'
 import { ALL_CATEGORIES } from '@/engine/types'
@@ -30,6 +31,8 @@ export interface GameStore {
   table: DiceTable | null
   /** Set when the current game is the daily challenge, as YYYY-MM-DD. */
   dailyKey: string | null
+  /** True while an AI opponent is taking its turn. */
+  aiThinking: boolean
 
   attachTable: (table: DiceTable | null) => void
   newGame: (
@@ -43,6 +46,8 @@ export interface GameStore {
   score: (category: CategoryId, column?: number) => void
   setActiveColumn: (column: number) => void
   dismissCelebration: () => void
+  /** Play the current AI player's whole turn, at a watchable pace. */
+  runAiTurn: () => Promise<void>
 }
 
 export const useGameStore = create<GameStore>((set, get) => ({
@@ -52,6 +57,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
   activeColumn: 0,
   table: null,
   dailyKey: null,
+  aiThinking: false,
 
   attachTable: (table) => {
     set({ table })
@@ -127,7 +133,53 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
   setActiveColumn: (column) => set({ activeColumn: column }),
   dismissCelebration: () => set({ celebrating: false }),
+
+  runAiTurn: async () => {
+    const start = get().game
+    if (!start || get().rolling || get().aiThinking) return
+    if (!currentPlayer(start).isAI || start.phase !== 'awaitingRoll') return
+
+    set({ aiThinking: true })
+    try {
+      // Derived from the game's own RNG position, so an AI opponent plays the
+      // same way when a game is replayed from its seed.
+      const rng = createRng((start.rngState ^ 0x9e3779b9) >>> 0)
+
+      await get().roll()
+
+      let state = get().game
+      if (!state) return
+      const column = aiColumn(state, rng)
+
+      while (state.rollsUsed < state.rules.rollsPerTurn) {
+        const holds = aiHolds(state, rng, column)
+        // Keeping everything means there is nothing worth rerolling.
+        if (holds.every(Boolean)) break
+
+        holds.forEach((hold, i) => {
+          const die = get().game?.dice[i]
+          if (die && die.held !== hold) get().hold(die.id)
+        })
+        // A beat so the player can see which dice the opponent kept.
+        await delay(650)
+
+        await get().roll()
+        state = get().game
+        if (!state) return
+      }
+
+      await delay(700)
+      const move = aiMove(state, rng)
+      get().score(move.category, move.column)
+    } finally {
+      set({ aiThinking: false })
+    }
+  },
 }))
+
+function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms))
+}
 
 /** Fold a finished game into the player's lifetime record.
  *

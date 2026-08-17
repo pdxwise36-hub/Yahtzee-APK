@@ -1,6 +1,6 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { RULE_SETS, type VariantId } from '@/engine/types'
-import { grandTotal } from '@/engine/game'
+import { grandTotal, type AiLevel, type PlayerConfig } from '@/engine/game'
 import { dailyKey, dailySeed } from '@/engine/rng'
 import { DICE_SKINS } from '@/dice3d/diceGeometry'
 import { unlockedSkins, averageScore } from '@/progression/achievements'
@@ -40,12 +40,22 @@ function SkinPicker(): JSX.Element {
   )
 }
 
+const OPPONENTS: { id: AiLevel | 'solo'; label: string }[] = [
+  { id: 'solo', label: 'Solo' },
+  { id: 'easy', label: 'Easy' },
+  { id: 'medium', label: 'Medium' },
+  { id: 'hard', label: 'Hard' },
+  { id: 'expert', label: 'Expert' },
+]
+
 interface StartProps {
   onStart: (variant: VariantId) => void
   onDaily: () => void
+  opponent: AiLevel | 'solo'
+  onOpponent: (id: AiLevel | 'solo') => void
 }
 
-function StartScreen({ onStart, onDaily }: StartProps): JSX.Element {
+function StartScreen({ onStart, onDaily, opponent, onOpponent }: StartProps): JSX.Element {
   const stats = useProfileStore((s) => s.stats)
   const todayDone = stats.lastDailyKey === dailyKey()
 
@@ -75,6 +85,19 @@ function StartScreen({ onStart, onDaily }: StartProps): JSX.Element {
               {RULE_SETS[id].diceCount} dice
               {RULE_SETS[id].columns > 1 ? ` · ${RULE_SETS[id].columns} columns` : ''}
             </span>
+          </button>
+        ))}
+      </div>
+
+      <div className="opponents" role="group" aria-label="Opponent">
+        {OPPONENTS.map((choice) => (
+          <button
+            key={choice.id}
+            type="button"
+            className={`opponent ${opponent === choice.id ? 'is-selected' : ''}`}
+            onClick={() => onOpponent(choice.id)}
+          >
+            {choice.label}
           </button>
         ))}
       </div>
@@ -151,9 +174,11 @@ function RollBar(): JSX.Element | null {
   const view = useTurnView()
   const roll = useGameStore((s) => s.roll)
   const rolling = useGameStore((s) => s.rolling)
+  const aiThinking = useGameStore((s) => s.aiThinking)
   if (!view) return null
 
-  const canRoll = view.rollsLeft > 0 && !rolling
+  const isAi = view.player.isAI
+  const canRoll = view.rollsLeft > 0 && !rolling && !aiThinking && !isAi
 
   return (
     <div className="rollbar">
@@ -163,7 +188,9 @@ function RollBar(): JSX.Element | null {
         disabled={!canRoll}
         onClick={() => void roll()}
       >
-        <span className="rollbutton__label">{rolling ? 'Rolling' : 'Roll'}</span>
+        <span className="rollbutton__label">
+          {rolling ? 'Rolling' : isAi ? `${view.player.name}…` : 'Roll'}
+        </span>
         <span className="rollbutton__pips">
           {Array.from({ length: view.game.rules.rollsPerTurn }, (_, i) => (
             <span key={i} className={`rollpip ${i < view.game.rollsUsed ? 'is-spent' : ''}`}>
@@ -175,7 +202,9 @@ function RollBar(): JSX.Element | null {
       <p className="hint">
         {rolling
           ? ''
-          : view.game.rollsUsed === 0
+          : isAi
+            ? `${view.player.name} is thinking`
+            : view.game.rollsUsed === 0
             ? 'Tap Roll to start your turn'
             : view.rollsLeft > 0
               ? 'Tap dice to keep them'
@@ -188,23 +217,50 @@ function RollBar(): JSX.Element | null {
 export function App(): JSX.Element {
   const game = useGameStore((s) => s.game)
   const newGame = useGameStore((s) => s.newGame)
+  const runAiTurn = useGameStore((s) => s.runAiTurn)
   const [started, setStarted] = useState(false)
+  const [opponent, setOpponent] = useState<AiLevel | 'solo'>('solo')
+
+  const roster = (): PlayerConfig[] => {
+    const you: PlayerConfig = { id: 'p1', name: 'You' }
+    if (opponent === 'solo') return [you]
+    return [
+      you,
+      { id: 'cpu', name: 'CPU', isAI: true, aiLevel: opponent },
+    ]
+  }
 
   const start = (variant: VariantId): void => {
-    newGame(variant, [{ id: 'p1', name: 'You' }])
+    newGame(variant, roster())
     setStarted(true)
   }
 
   // Every player gets the same dice today, because the seed is the date.
   const startDaily = (): void => {
-    newGame('standard', [{ id: 'p1', name: 'You' }], dailySeed(), dailyKey())
+    newGame('standard', roster(), dailySeed(), dailyKey())
     setStarted(true)
   }
+
+  // Hand over to the AI whenever the turn reaches one, rather than waiting for
+  // a tap the player has no way to make.
+  const isAiTurn =
+    game !== null &&
+    game.phase === 'awaitingRoll' &&
+    (game.players[game.currentPlayer]?.isAI ?? false)
+
+  useEffect(() => {
+    if (isAiTurn) void runAiTurn()
+  }, [isAiTurn, game?.currentPlayer, game?.turnNumber, runAiTurn])
 
   if (!started || !game) {
     return (
       <div className="app">
-        <StartScreen onStart={start} onDaily={startDaily} />
+        <StartScreen
+          onStart={start}
+          onDaily={startDaily}
+          opponent={opponent}
+          onOpponent={setOpponent}
+        />
         <Rewards />
       </div>
     )

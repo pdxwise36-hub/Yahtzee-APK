@@ -99,70 +99,113 @@ body {
 .board {
   flex: 1;
   min-height: 0;
-  padding: 10px;
-  overflow-y: auto;
-  background: linear-gradient(180deg, var(--board) 0%, var(--board-alt) 100%);
+  padding: 8px;
+  overflow: hidden;
+  background: linear-gradient(180deg, #f6c874 0%, var(--board-alt) 100%);
   border: 3px solid var(--board-rim);
-  border-radius: 20px;
-  box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.45), 0 8px 22px rgba(0, 0, 0, 0.32);
+  border-radius: 22px;
+  box-shadow:
+    inset 0 3px 0 rgba(255, 255, 255, 0.5),
+    inset 0 -3px 0 rgba(0, 0, 0, 0.08),
+    0 8px 22px rgba(0, 0, 0, 0.34);
 }
 
-.board__columns {
+.board__grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 6px 14px;
+  /* Seven equal rows: six upper boxes plus the bonus, against seven lower
+     boxes, so the two halves of the card line up exactly. */
+  grid-template-rows: repeat(7, 1fr);
+  gap: 2px;
   height: 100%;
-}
-
-.board__column {
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  gap: 5px;
+  border-radius: 14px;
+  overflow: hidden;
 }
 
 .board__row {
   display: grid;
-  grid-template-columns: auto 1fr;
+  grid-template-columns: 1fr 1fr;
   align-items: center;
-  gap: 8px;
-  flex: 1;
+  gap: 10px;
+  padding: 0 6px;
   min-height: 0;
 }
 
-/* Category tiles: the red chips down the left of each column. */
+/* Each half is its own sub-grid of a tile plus one box per player, so an
+   opponent's column appears alongside yours without any of the rows needing
+   to know how many players there are. */
+.board__half {
+  display: grid;
+  grid-template-columns: auto repeat(var(--players, 1), minmax(0, 1fr));
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+/* Banding makes a long row of boxes readable across, the way ruled lines do
+   on the printed card. */
+.board__row:nth-child(odd) {
+  background: rgba(255, 255, 255, 0.16);
+}
+
+/* Category tiles: the glossy red chips beside each box. */
 .tile {
+  position: relative;
   display: grid;
   place-items: center;
-  width: clamp(34px, 9vw, 46px);
+  width: clamp(32px, 8.6vw, 44px);
   aspect-ratio: 1;
   color: #fff;
-  background: linear-gradient(180deg, #f2645a, var(--tile));
-  border: 2px solid var(--tile-rim);
-  border-radius: 11px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.28);
+  background: linear-gradient(180deg, #ff7264 0%, var(--tile) 52%, #c9302a 100%);
+  border: 2.5px solid #fff;
+  border-radius: 12px;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.32);
+}
+
+/* A soft highlight across the top half reads as a moulded plastic tile. */
+.tile::after {
+  content: '';
+  position: absolute;
+  inset: 2px 2px 52% 2px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.42), rgba(255, 255, 255, 0));
+  border-radius: 8px 8px 12px 12px;
+  pointer-events: none;
+}
+
+/* The premium boxes wear a star, as they do on the board. */
+.tile--starred::before {
+  content: '★';
+  position: absolute;
+  top: -7px;
+  left: -6px;
+  z-index: 1;
+  font-size: 0.82rem;
+  line-height: 1;
+  color: #ffcf3f;
+  text-shadow: 0 0 2px #a3700f, 0 1px 2px rgba(0, 0, 0, 0.5);
 }
 
 .tile__text {
-  font-size: clamp(0.95rem, 3.4vw, 1.2rem);
+  font-size: clamp(0.9rem, 3.2vw, 1.15rem);
   font-weight: 800;
   letter-spacing: 0.02em;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
 }
 
 .tile__text--small {
-  font-size: clamp(0.42rem, 1.8vw, 0.56rem);
-  letter-spacing: 0.04em;
+  font-size: clamp(0.4rem, 1.7vw, 0.52rem);
+  letter-spacing: 0.05em;
 }
 
 .tile__text--yahtzee {
-  font-size: clamp(0.36rem, 1.5vw, 0.48rem);
-  color: var(--gold);
-  letter-spacing: 0.02em;
+  font-size: clamp(0.34rem, 1.45vw, 0.44rem);
+  color: #ffdf6b;
+  letter-spacing: 0.01em;
 }
 
 .tile__glyph {
-  width: 62%;
-  height: 62%;
+  width: 60%;
+  height: 60%;
+  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.3));
 }
 
 /* Pip faces for the upper section. */
@@ -170,7 +213,7 @@ body {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 1px;
-  width: 66%;
+  width: 64%;
   aspect-ratio: 1;
 }
 
@@ -181,40 +224,40 @@ body {
 .die-face__pip {
   border-radius: 50%;
   background: #fff;
-  box-shadow: 0 0 0 0.5px rgba(0, 0, 0, 0.12);
+  box-shadow: 0 0 1px rgba(0, 0, 0, 0.35);
 }
 
-/* Score slots: the cream boxes the player taps. */
+/* Score boxes: the cream slots the player taps. */
 .slot {
   display: grid;
   place-items: center;
   width: 100%;
-  height: 100%;
-  min-height: 30px;
-  padding: 0 6px;
+  height: clamp(30px, 7.4vw, 40px);
+  padding: 0 4px;
   font: inherit;
-  font-size: clamp(1rem, 4vw, 1.35rem);
+  font-size: clamp(0.95rem, 3.8vw, 1.25rem);
   font-weight: 800;
   font-variant-numeric: tabular-nums;
   color: var(--ink);
-  background: var(--slot);
+  background: linear-gradient(180deg, #fffdf5, var(--slot));
   border: 2px solid var(--slot-rim);
-  border-radius: 10px;
+  border-radius: 9px;
   cursor: default;
-  box-shadow: inset 0 -2px 0 rgba(0, 0, 0, 0.08);
+  box-shadow: inset 0 2px 3px rgba(150, 110, 45, 0.22);
   transition: transform 120ms ease, background 180ms ease, border-color 180ms ease;
 }
 
 .slot.is-filled {
-  color: #9a6a24;
-  background: #e8d9b6;
+  color: #8f6320;
+  background: linear-gradient(180deg, #e9dbba, #ddcba4);
+  box-shadow: inset 0 2px 4px rgba(120, 88, 36, 0.3);
 }
 
 .slot.is-available {
   cursor: pointer;
-  color: #1b6b2f;
-  background: #eaffd8;
-  border-color: #4fbf3f;
+  color: #16702f;
+  background: linear-gradient(180deg, #f4ffe6, #dcf7c4);
+  border-color: #5cc248;
   animation: slot-ready 1.6s ease-in-out infinite;
 }
 
@@ -222,54 +265,86 @@ body {
   transform: scale(0.94);
 }
 
+/* A box worth nothing is still legal to take, but should not compete for
+   attention with one that scores. */
+/* An opponent's column is a read-out, not a control: visible but clearly not
+   yours to tap. */
+.slot.is-opponent {
+  color: #8a6b3c;
+  background: linear-gradient(180deg, #f0e4c6, #e3d3ae);
+  border-color: rgba(160, 122, 58, 0.6);
+  box-shadow: inset 0 2px 3px rgba(120, 88, 36, 0.25);
+  animation: none;
+}
+
 .slot.is-zero {
-  color: #a08a6a;
-  background: #f0e6d0;
+  color: #a58f6d;
+  background: linear-gradient(180deg, #f6efdd, #ece2c8);
   border-color: var(--slot-rim);
   animation: none;
 }
 
+/* The bonus cell takes the place of a tile-and-box pair on the last row. */
 .board__bonus {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
+  grid-template-columns: auto auto;
+  justify-content: start;
   gap: 8px;
-  padding: 6px 4px 2px;
-  flex: none;
 }
 
 .board__bonus-label {
-  display: flex;
-  flex-direction: column;
-  font-size: 0.6rem;
+  font-size: 0.54rem;
   font-weight: 800;
-  line-height: 1.1;
-  letter-spacing: 0.08em;
+  line-height: 1.15;
+  letter-spacing: 0.09em;
   text-transform: uppercase;
-  color: var(--ink);
+  color: #8a5a12;
 }
 
 .board__bonus-label strong {
+  display: block;
   font-size: 1.05rem;
+  line-height: 1.1;
   color: #e07d1f;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.5);
 }
 
-.board__bonus-meter {
+/* A ring that fills as the upper section approaches the bonus, so progress is
+   legible at a glance rather than needing the numbers read. */
+.meter {
+  position: relative;
   display: grid;
   place-items: center;
-  min-width: 54px;
-  padding: 7px 9px;
-  font-size: 0.82rem;
-  font-weight: 800;
-  font-variant-numeric: tabular-nums;
-  color: var(--ink);
-  background: rgba(0, 0, 0, 0.16);
-  border-radius: 999px;
+  width: clamp(44px, 11vw, 56px);
+  aspect-ratio: 1;
+  background:
+    conic-gradient(#f2a12a var(--fill, 0%), rgba(107, 66, 15, 0.35) var(--fill, 0%));
+  border-radius: 50%;
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.3);
 }
 
-.board__bonus-meter.is-earned {
-  color: #1b6b2f;
-  background: #d5f5c4;
+.meter::before {
+  content: '';
+  position: absolute;
+  inset: 5px;
+  background: #a9741f;
+  border-radius: 50%;
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.4);
+}
+
+.meter__value {
+  position: relative;
+  font-size: clamp(0.55rem, 2.2vw, 0.7rem);
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  color: #fff3d6;
+}
+
+.meter.is-earned {
+  background: conic-gradient(#5cc248 100%, #5cc248 0);
+}
+
+.meter.is-earned::before {
+  background: #2f7a24;
 }
 
 /* ---------- dice tray ---------- */
@@ -685,4 +760,34 @@ body {
 @keyframes fade-in {
   from { opacity: 0; }
   to { opacity: 1; }
+}
+
+/* ---------- opponent picker ---------- */
+
+.opponents {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 7px;
+  margin-top: 2px;
+}
+
+.opponent {
+  padding: 8px 14px;
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--cream);
+  background: rgba(0, 0, 0, 0.26);
+  border: 2px solid transparent;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: border-color 160ms ease, background 160ms ease, transform 120ms ease;
+}
+
+.opponent.is-selected {
+  color: var(--ink);
+  background: var(--gold);
+  border-color: #fff;
+  transform: translateY(-2px);
 }

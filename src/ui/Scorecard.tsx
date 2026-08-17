@@ -7,11 +7,13 @@ import {
   type LowerCategory,
 } from '@/engine/types'
 import { upperSubtotal } from '@/engine/scoring'
+import type { PlayerState } from '@/engine/game'
 import { useGameStore, useTurnView } from '@/state/gameStore'
 import { DieFace } from './DieFace'
 
-/** Compact glyphs for the lower section, matching how the physical card reads:
- *  a count for the of-a-kind boxes, a house, then the straights by length. */
+/** Compact glyphs for the lower section, matching how the printed card reads:
+ *  a count for the of-a-kind boxes, a house, the straights by length. The
+ *  straights and Yahtzee carry a star, as the premium boxes do on the board. */
 function LowerIcon({ category }: { category: LowerCategory }): JSX.Element {
   switch (category) {
     case 'threeOfAKind':
@@ -35,40 +37,72 @@ function LowerIcon({ category }: { category: LowerCategory }): JSX.Element {
   }
 }
 
-interface RowProps {
+const STARRED: ReadonlySet<CategoryId> = new Set<CategoryId>([
+  'smallStraight',
+  'largeStraight',
+  'yahtzee',
+])
+
+interface CellProps {
   category: CategoryId
-  filled: number | undefined
+  players: readonly PlayerState[]
+  /** Which player may actually be scored into right now. */
+  activePlayer: number
+  column: number
   preview: number | undefined
   legal: boolean
+  interactive: boolean
   onPick: (category: CategoryId) => void
   children: JSX.Element
 }
 
-function BoardRow({ category, filled, preview, legal, onPick, children }: RowProps): JSX.Element {
-  const isFilled = filled !== undefined
-  const available = !isFilled && legal && preview !== undefined
-  const isZero = available && preview === 0
-
+/** A tile plus one score box per player, so an opponent's card sits alongside
+ *  yours on the same row rather than on a screen you have to switch to. */
+function Cell({
+  category,
+  players,
+  activePlayer,
+  column,
+  preview,
+  legal,
+  interactive,
+  onPick,
+  children,
+}: CellProps): JSX.Element {
   return (
-    <div className="board__row">
-      <span className="tile" aria-hidden="true">
+    <>
+      <span className={`tile ${STARRED.has(category) ? 'tile--starred' : ''}`} aria-hidden="true">
         {children}
       </span>
-      <button
-        type="button"
-        className={[
-          'slot',
-          isFilled ? 'is-filled' : '',
-          available ? 'is-available' : '',
-          isZero ? 'is-zero' : '',
-        ].filter(Boolean).join(' ')}
-        disabled={!available}
-        onClick={() => onPick(category)}
-        aria-label={`${CATEGORY_LABELS[category]}${isFilled ? `, scored ${filled}` : available ? `, scores ${preview}` : ', unavailable'}`}
-      >
-        {isFilled ? filled : available ? preview : ''}
-      </button>
-    </div>
+      {players.map((player, index) => {
+        const filled = player.cards[column]?.[category]
+        const isFilled = filled !== undefined
+        const isActive = index === activePlayer
+        const available = isActive && interactive && !isFilled && legal && preview !== undefined
+        const isZero = available && preview === 0
+
+        return (
+          <button
+            key={player.id}
+            type="button"
+            className={[
+              'slot',
+              isFilled ? 'is-filled' : '',
+              available ? 'is-available' : '',
+              isZero ? 'is-zero' : '',
+              isActive ? '' : 'is-opponent',
+            ].filter(Boolean).join(' ')}
+            disabled={!available}
+            onClick={() => onPick(category)}
+            aria-label={`${CATEGORY_LABELS[category]}, ${player.name}${
+              isFilled ? `, scored ${filled}` : available ? `, scores ${preview}` : ''
+            }`}
+          >
+            {isFilled ? filled : available ? preview : ''}
+          </button>
+        )
+      })}
+    </>
   )
 }
 
@@ -77,51 +111,80 @@ export function Scorecard(): JSX.Element | null {
   const score = useGameStore((s) => s.score)
   if (!view) return null
 
-  const { card, preview, legal, game } = view
+  const { card, preview, legal, game, activeColumn } = view
   const subtotal = upperSubtotal(card)
-  const earned = subtotal >= game.rules.upperBonusThreshold
+  const threshold = game.rules.upperBonusThreshold
+  const earned = subtotal >= threshold
+  const players = game.players
+  // Only a human may tap a box; an AI's turn plays itself.
+  const interactive = !players[game.currentPlayer]?.isAI
+
+  // Both halves of the card are laid out as one grid of equal rows, so the
+  // upper and lower sections line up exactly and the striping can run
+  // unbroken across the full width of the board.
+  const rows = LOWER_CATEGORIES.map((lower, i) => ({ upper: UPPER_CATEGORIES[i], lower }))
+
+  const shared = {
+    players,
+    activePlayer: game.currentPlayer,
+    column: activeColumn,
+    interactive,
+    onPick: score,
+  }
 
   return (
-    <section className="board" aria-label="Scorecard">
-      <div className="board__columns">
-        <div className="board__column">
-          {UPPER_CATEGORIES.map((category) => (
-            <BoardRow
-              key={category}
-              category={category}
-              filled={card[category]}
-              preview={preview[category]}
-              legal={legal.has(category)}
-              onPick={score}
-            >
-              <DieFace value={UPPER_FACE[category]} />
-            </BoardRow>
-          ))}
-          <div className="board__bonus">
-            <span className="board__bonus-label">
-              Section bonus
-              <strong>+{game.rules.upperBonusValue}</strong>
-            </span>
-            <span className={`board__bonus-meter ${earned ? 'is-earned' : ''}`}>
-              {earned ? `+${game.rules.upperBonusValue}` : `${subtotal}/${game.rules.upperBonusThreshold}`}
-            </span>
+    <section
+      className="board"
+      aria-label="Scorecard"
+      style={{ ['--players' as string]: players.length }}
+    >
+      <div className="board__grid">
+        {rows.map(({ upper, lower }) => (
+          <div className="board__row" key={lower}>
+            {upper ? (
+              <div className="board__half">
+                <Cell
+                  {...shared}
+                  category={upper}
+                  preview={preview[upper]}
+                  legal={legal.has(upper)}
+                >
+                  <DieFace value={UPPER_FACE[upper]} />
+                </Cell>
+              </div>
+            ) : (
+              <div className="board__half board__bonus">
+                <span className="board__bonus-label">
+                  Section
+                  <br />
+                  bonus
+                  <strong>+{game.rules.upperBonusValue}</strong>
+                </span>
+                <span
+                  className={`meter ${earned ? 'is-earned' : ''}`}
+                  style={{
+                    // The ring fills clockwise with progress toward the bonus.
+                    ['--fill' as string]: `${Math.min(100, (subtotal / threshold) * 100)}%`,
+                  }}
+                >
+                  <span className="meter__value">
+                    {earned ? `+${game.rules.upperBonusValue}` : `${subtotal}/${threshold}`}
+                  </span>
+                </span>
+              </div>
+            )}
+            <div className="board__half">
+              <Cell
+                {...shared}
+                category={lower}
+                preview={preview[lower]}
+                legal={legal.has(lower)}
+              >
+                <LowerIcon category={lower} />
+              </Cell>
+            </div>
           </div>
-        </div>
-
-        <div className="board__column">
-          {LOWER_CATEGORIES.map((category) => (
-            <BoardRow
-              key={category}
-              category={category}
-              filled={card[category]}
-              preview={preview[category]}
-              legal={legal.has(category)}
-              onPick={score}
-            >
-              <LowerIcon category={category} />
-            </BoardRow>
-          ))}
-        </div>
+        ))}
       </div>
     </section>
   )
