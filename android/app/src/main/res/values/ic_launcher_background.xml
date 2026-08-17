@@ -1,4 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="ic_launcher_background">#FFFFFF</color>
+    <!-- Flat stand-in for the gradient, for anywhere a single colour is
+         wanted. Taken from the middle of the gradient so it reads the same. -->
+    <color name="ic_launcher_background">#DCE4EE</color>
 </resources>

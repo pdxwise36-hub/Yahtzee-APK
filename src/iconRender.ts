@@ -122,7 +122,12 @@ function paintBackground(variant: Variant): THREE.Texture {
   return texture
 }
 
-function render(variant: Variant): void {
+/** Renders one candidate.
+ *
+ *  `transparent` drops the background and the shadow catcher, which is what an
+ *  adaptive launcher icon's foreground layer needs: Android draws its own
+ *  background behind it and its own elevation shadow beneath it. */
+function render(variant: Variant, transparent: boolean): void {
   const renderer = new THREE.WebGLRenderer({
     antialias: true,
     alpha: true,
@@ -141,7 +146,7 @@ function render(variant: Variant): void {
   document.body.appendChild(renderer.domElement)
 
   const scene = new THREE.Scene()
-  scene.background = paintBackground(variant)
+  if (!transparent) scene.background = paintBackground(variant)
   scene.environment = createStudioEnvironment(renderer)
 
   const camera = new THREE.PerspectiveCamera(30, 1, 0.1, 60)
@@ -176,7 +181,7 @@ function render(variant: Variant): void {
   floor.rotation.x = -Math.PI / 2
   floor.position.y = -0.98
   floor.receiveShadow = true
-  scene.add(floor)
+  if (!transparent) scene.add(floor)
 
   const geometry = createRoundedDieGeometry(1, 0.14, 6)
   for (const placement of variant.dice) {
@@ -196,5 +201,14 @@ function render(variant: Variant): void {
   renderer.render(scene, camera)
 }
 
-for (const variant of VARIANTS) render(variant)
+// `?only=<id>` renders a single candidate, `&transparent=1` without its
+// background, so the launcher-icon script can pull both layers from here
+// rather than keeping a second copy of the scene.
+const params = new URLSearchParams(location.search)
+const only = params.get('only')
+const transparent = params.get('transparent') === '1'
+for (const variant of VARIANTS) {
+  if (only && variant.id !== only) continue
+  render(variant, transparent)
+}
 ;(window as unknown as { __iconsReady: boolean }).__iconsReady = true
