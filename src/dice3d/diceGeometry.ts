@@ -103,7 +103,7 @@ export interface DiceSkin {
 
 export const DICE_SKINS: Record<string, DiceSkin> = {
   ivory: {
-    id: 'ivory', name: 'Ivory', body: '#f6f1e3', pip: '#1d1d1f',
+    id: 'ivory', name: 'Ivory', body: '#f8f4e8', pip: '#121214',
     edge: '#d9d0ba', roughness: 0.32, metalness: 0.02,
   },
   midnight: {
@@ -126,6 +126,19 @@ export const DICE_SKINS: Record<string, DiceSkin> = {
     id: 'neon', name: 'Neon', body: '#12121a', pip: '#39ff9e',
     edge: '#05050a', roughness: 0.4, metalness: 0.05,
   },
+}
+
+/** Blend two hex colours. Used to shade pips without hand-listing variants. */
+function mix(a: string, b: string, amount: number): string {
+  const parse = (hex: string): [number, number, number] => [
+    parseInt(hex.slice(1, 3), 16),
+    parseInt(hex.slice(3, 5), 16),
+    parseInt(hex.slice(5, 7), 16),
+  ]
+  const [r1, g1, b1] = parse(a)
+  const [r2, g2, b2] = parse(b)
+  const channel = (x: number, y: number): number => Math.round(x + (y - x) * amount)
+  return `rgb(${channel(r1, r2)}, ${channel(g1, g2)}, ${channel(b1, b2)})`
 }
 
 /** Pip positions as fractions of the face, for each value. */
@@ -155,37 +168,38 @@ function drawFace(value: DieValue, skin: DiceSkin, resolution: number): HTMLCanv
   )
   vignette.addColorStop(0, 'rgba(0,0,0,0)')
   vignette.addColorStop(1, skin.edge)
-  ctx.globalAlpha = 0.55
+  ctx.globalAlpha = 0.72
   ctx.fillStyle = vignette
   ctx.fillRect(0, 0, resolution, resolution)
   ctx.globalAlpha = 1
 
-  const pipRadius = resolution * (value === 1 ? 0.115 : 0.083)
+  const pipRadius = resolution * (value === 1 ? 0.125 : 0.092)
   for (const [x, y] of PIP_LAYOUT[value]) {
     const cx = x * resolution
     const cy = y * resolution
 
-    // Drop shadow below the pip sells the drilled-out recess.
+    // A pip is drilled, not printed. The rim below it catches light while the
+    // hollow above stays dark, which is what reads as depth on a flat texture.
     ctx.beginPath()
-    ctx.arc(cx, cy + pipRadius * 0.16, pipRadius * 1.04, 0, Math.PI * 2)
-    ctx.fillStyle = 'rgba(0,0,0,0.28)'
+    ctx.arc(cx, cy + pipRadius * 0.1, pipRadius * 1.09, 0, Math.PI * 2)
+    const rim = ctx.createLinearGradient(0, cy - pipRadius, 0, cy + pipRadius * 1.1)
+    rim.addColorStop(0, 'rgba(0,0,0,0.22)')
+    rim.addColorStop(1, 'rgba(255,255,255,0.22)')
+    ctx.fillStyle = rim
     ctx.fill()
 
     ctx.beginPath()
     ctx.arc(cx, cy, pipRadius, 0, Math.PI * 2)
     const pipShade = ctx.createRadialGradient(
-      cx - pipRadius * 0.35, cy - pipRadius * 0.35, pipRadius * 0.1,
-      cx, cy, pipRadius,
+      cx + pipRadius * 0.28, cy + pipRadius * 0.38, pipRadius * 0.05,
+      cx, cy, pipRadius * 1.1,
     )
-    pipShade.addColorStop(0, skin.pip)
-    pipShade.addColorStop(1, skin.pip)
+    // Only the faintest lift where the hollow catches light, then straight to
+    // the pip colour and darker still at the rim.
+    pipShade.addColorStop(0, mix(skin.pip, '#ffffff', 0.06))
+    pipShade.addColorStop(0.4, skin.pip)
+    pipShade.addColorStop(1, mix(skin.pip, '#000000', 0.5))
     ctx.fillStyle = pipShade
-    ctx.fill()
-
-    // A tiny specular catch-light on the pip's upper-left.
-    ctx.beginPath()
-    ctx.arc(cx - pipRadius * 0.3, cy - pipRadius * 0.3, pipRadius * 0.26, 0, Math.PI * 2)
-    ctx.fillStyle = 'rgba(255,255,255,0.16)'
     ctx.fill()
   }
 
@@ -193,20 +207,28 @@ function drawFace(value: DieValue, skin: DiceSkin, resolution: number): HTMLCanv
 }
 
 /** The six face materials for a die, in BoxGeometry order. */
-export function createDieMaterials(skin: DiceSkin, resolution = 256): THREE.MeshStandardMaterial[] {
+export function createDieMaterials(skin: DiceSkin, resolution = 256): THREE.MeshPhysicalMaterial[] {
   return FACE_VALUES.map((value) => {
     const texture = new THREE.CanvasTexture(drawFace(value, skin, resolution))
-    texture.anisotropy = 4
+    texture.anisotropy = 8
     texture.colorSpace = THREE.SRGBColorSpace
-    return new THREE.MeshStandardMaterial({
+    return new THREE.MeshPhysicalMaterial({
       map: texture,
       roughness: skin.roughness,
       metalness: skin.metalness,
+      // A thin lacquer over the body. This is what gives the rounded edges a
+      // moving highlight, which is most of what separates a real die from a
+      // flat-shaded cube.
+      clearcoat: 0.5,
+      clearcoatRoughness: 0.22,
+      // The scene environment now contributes most of the fill, so this stays
+      // low; higher values blow the faces out and grey the pips.
+      envMapIntensity: 0.55,
     })
   })
 }
 
-export function disposeMaterials(materials: THREE.MeshStandardMaterial[]): void {
+export function disposeMaterials(materials: THREE.MeshPhysicalMaterial[]): void {
   for (const material of materials) {
     material.map?.dispose()
     material.dispose()

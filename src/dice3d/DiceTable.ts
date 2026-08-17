@@ -8,6 +8,7 @@ import {
   type DiceSkin,
 } from './diceGeometry'
 import { DEFAULT_TRAY, DIE_SIZE, FIXED_STEP, type RollAnimation } from './physicsRoll'
+import { createStudioEnvironment } from './environment'
 
 export type TableQuality = 'high' | 'low'
 
@@ -56,7 +57,7 @@ export class DiceTable {
   private readonly pointer = new THREE.Vector2()
 
   private geometry: THREE.BufferGeometry
-  private materials: THREE.MeshStandardMaterial[]
+  private materials: THREE.MeshPhysicalMaterial[]
   private skin: DiceSkin
   private dice: DieView[] = []
 
@@ -117,6 +118,9 @@ export class DiceTable {
     this.camera.position.set(0, 12.4, 9.6)
     this.camera.lookAt(0, 0, 0.4)
 
+    // Applied to the scene so every physical material picks it up.
+    this.scene.environment = createStudioEnvironment(this.renderer)
+
     this.buildTable()
     this.buildLights()
 
@@ -145,9 +149,9 @@ export class DiceTable {
   }
 
   private buildLights(): void {
-    this.scene.add(new THREE.HemisphereLight(0xe8f2ff, 0x0d2b40, 0.9))
+    this.scene.add(new THREE.HemisphereLight(0xe8f2ff, 0x0d2b40, 0.42))
 
-    const key = new THREE.DirectionalLight(0xfff4e2, 2.1)
+    const key = new THREE.DirectionalLight(0xfff4e2, 1.45)
     key.position.set(-5.5, 13, 7)
     key.castShadow = true
     const shadowSize = this.quality === 'high' ? 2048 : 1024
@@ -162,7 +166,7 @@ export class DiceTable {
     key.shadow.radius = 3
     this.scene.add(key)
 
-    const fill = new THREE.DirectionalLight(0x9fc4ff, 0.5)
+    const fill = new THREE.DirectionalLight(0x9fc4ff, 0.28)
     fill.position.set(7, 6, -5)
     this.scene.add(fill)
   }
@@ -511,6 +515,7 @@ export class DiceTable {
     this.scene.traverse((object) => {
       if (object instanceof THREE.Mesh && object.geometry) object.geometry.dispose()
     })
+    this.scene.environment?.dispose()
     this.renderer.dispose()
     this.renderer.domElement.remove()
   }

@@ -36,7 +36,14 @@ body,
 body {
   font-family: var(--font);
   color: var(--cream);
-  background: linear-gradient(180deg, var(--sky) 0%, var(--sky-deep) 100%);
+  /* A faint scatter of dice over the gradient. Drawn as an inline SVG tile
+     rather than an image so it stays crisp at any density and costs nothing
+     to download. */
+  background-color: var(--sky-deep);
+  background-image:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120' viewBox='0 0 120 120'%3E%3Cg fill='none' stroke='%23ffffff' stroke-opacity='0.05' stroke-width='2'%3E%3Crect x='14' y='18' width='30' height='30' rx='7' transform='rotate(-12 29 33)'/%3E%3Crect x='72' y='58' width='24' height='24' rx='6' transform='rotate(18 84 70)'/%3E%3Crect x='30' y='80' width='20' height='20' rx='5' transform='rotate(26 40 90)'/%3E%3C/g%3E%3Cg fill='%23ffffff' fill-opacity='0.05'%3E%3Ccircle cx='29' cy='33' r='3'/%3E%3Ccircle cx='78' cy='64' r='2.4'/%3E%3Ccircle cx='90' cy='76' r='2.4'/%3E%3C/g%3E%3C/svg%3E"),
+    linear-gradient(180deg, var(--sky) 0%, var(--sky-deep) 100%);
+  background-attachment: fixed;
   overscroll-behavior: none;
   user-select: none;
 }
@@ -101,13 +108,15 @@ body {
   min-height: 0;
   padding: 8px;
   overflow: hidden;
-  background: linear-gradient(180deg, #f6c874 0%, var(--board-alt) 100%);
+  background:
+    radial-gradient(120% 80% at 50% 0%, rgba(255, 255, 255, 0.35), rgba(255, 255, 255, 0) 60%),
+    linear-gradient(180deg, #f8cd78 0%, var(--board) 45%, var(--board-alt) 100%);
   border: 3px solid var(--board-rim);
   border-radius: 22px;
   box-shadow:
-    inset 0 3px 0 rgba(255, 255, 255, 0.5),
-    inset 0 -3px 0 rgba(0, 0, 0, 0.08),
-    0 8px 22px rgba(0, 0, 0, 0.34);
+    inset 0 3px 0 rgba(255, 255, 255, 0.6),
+    inset 0 -4px 0 rgba(146, 96, 20, 0.35),
+    0 10px 26px rgba(0, 0, 0, 0.42);
 }
 
 .board__grid {
@@ -155,10 +164,12 @@ body {
   width: clamp(32px, 8.6vw, 44px);
   aspect-ratio: 1;
   color: #fff;
-  background: linear-gradient(180deg, #ff7264 0%, var(--tile) 52%, #c9302a 100%);
+  background: linear-gradient(180deg, #ff8577 0%, var(--tile) 48%, #bd2a25 100%);
   border: 2.5px solid #fff;
-  border-radius: 12px;
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.32);
+  border-radius: 13px;
+  box-shadow:
+    0 3px 6px rgba(0, 0, 0, 0.36),
+    inset 0 -2px 3px rgba(0, 0, 0, 0.28);
 }
 
 /* A soft highlight across the top half reads as a moulded plastic tile. */
@@ -171,41 +182,48 @@ body {
   pointer-events: none;
 }
 
-/* The premium boxes wear a star, as they do on the board. */
-.tile--starred::before {
-  content: '★';
-  position: absolute;
-  top: -7px;
-  left: -6px;
-  z-index: 1;
-  font-size: 0.82rem;
+/* Straights pair their run of bars with the length of run they need. */
+.tile__stack {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 1px;
+  width: 82%;
+}
+
+.tile__glyph--stairs {
+  width: 100%;
+  height: auto;
+}
+
+.tile__count {
+  font-size: clamp(0.78rem, 2.9vw, 1rem);
+  font-weight: 900;
   line-height: 1;
-  color: #ffcf3f;
-  text-shadow: 0 0 2px #a3700f, 0 1px 2px rgba(0, 0, 0, 0.5);
+  color: var(--gold);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
 }
 
 .tile__text {
-  font-size: clamp(0.9rem, 3.2vw, 1.15rem);
+  font-size: clamp(1rem, 3.6vw, 1.3rem);
   font-weight: 800;
-  letter-spacing: 0.02em;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
-}
-
-.tile__text--small {
-  font-size: clamp(0.4rem, 1.7vw, 0.52rem);
-  letter-spacing: 0.05em;
-}
-
-.tile__text--yahtzee {
-  font-size: clamp(0.34rem, 1.45vw, 0.44rem);
-  color: #ffdf6b;
   letter-spacing: 0.01em;
+  text-shadow: 0 1.5px 2px rgba(0, 0, 0, 0.4);
 }
 
 .tile__glyph {
-  width: 60%;
-  height: 60%;
-  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.3));
+  width: 58%;
+  height: 58%;
+  filter: drop-shadow(0 1.5px 1px rgba(0, 0, 0, 0.35));
+}
+
+/* The Yahtzee star is the one gold element on the board, so it reads as the
+   prize box without needing a label. */
+.tile__glyph--star {
+  width: 68%;
+  height: 68%;
+  color: var(--gold);
+  filter: drop-shadow(0 1.5px 1px rgba(0, 0, 0, 0.45));
 }
 
 /* Pip faces for the upper section. */

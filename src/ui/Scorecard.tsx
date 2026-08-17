@@ -4,44 +4,12 @@ import {
   UPPER_CATEGORIES,
   UPPER_FACE,
   type CategoryId,
-  type LowerCategory,
 } from '@/engine/types'
 import { upperSubtotal } from '@/engine/scoring'
 import type { PlayerState } from '@/engine/game'
 import { useGameStore, useTurnView } from '@/state/gameStore'
 import { DieFace } from './DieFace'
-
-/** Compact glyphs for the lower section, matching how the printed card reads:
- *  a count for the of-a-kind boxes, a house, the straights by length. The
- *  straights and Yahtzee carry a star, as the premium boxes do on the board. */
-function LowerIcon({ category }: { category: LowerCategory }): JSX.Element {
-  switch (category) {
-    case 'threeOfAKind':
-      return <span className="tile__text">3x</span>
-    case 'fourOfAKind':
-      return <span className="tile__text">4x</span>
-    case 'fullHouse':
-      return (
-        <svg className="tile__glyph" viewBox="0 0 24 24" aria-hidden="true">
-          <path d="M12 3 2.5 11h3v10h13V11h3Z" fill="currentColor" />
-        </svg>
-      )
-    case 'smallStraight':
-      return <span className="tile__text tile__text--small">SMALL</span>
-    case 'largeStraight':
-      return <span className="tile__text tile__text--small">LARGE</span>
-    case 'yahtzee':
-      return <span className="tile__text tile__text--yahtzee">YAHTZEE</span>
-    case 'chance':
-      return <span className="tile__text">?</span>
-  }
-}
-
-const STARRED: ReadonlySet<CategoryId> = new Set<CategoryId>([
-  'smallStraight',
-  'largeStraight',
-  'yahtzee',
-])
+import { CategoryIcon } from './CategoryIcon'
 
 interface CellProps {
   category: CategoryId
@@ -71,7 +39,7 @@ function Cell({
 }: CellProps): JSX.Element {
   return (
     <>
-      <span className={`tile ${STARRED.has(category) ? 'tile--starred' : ''}`} aria-hidden="true">
+      <span className="tile" aria-hidden="true">
         {children}
       </span>
       {players.map((player, index) => {
@@ -183,7 +151,7 @@ export function Scorecard(): JSX.Element | null {
                 preview={preview[lower]}
                 legal={legal.has(lower)}
               >
-                <LowerIcon category={lower} />
+                <CategoryIcon category={lower} />
               </Cell>
             </div>
           </div>
