@@ -1,9 +1,14 @@
 :root {
   --sky: #1a86dd;
   --sky-deep: #0b5798;
+  --board-top: #f8cd78;
   --board: #f2bd63;
   --board-alt: #edb251;
   --board-rim: #c8862a;
+  --board-sheen: rgba(255, 255, 255, 0.35);
+  --board-stripe: rgba(255, 255, 255, 0.16);
+  --board-inner: rgba(146, 96, 20, 0.35);
+  --label: #8a5a12;
   --tile: #e8453c;
   --tile-rim: #ffffff;
   --slot: #fdf5e2;
@@ -109,13 +114,13 @@ body {
   padding: 8px;
   overflow: hidden;
   background:
-    radial-gradient(120% 80% at 50% 0%, rgba(255, 255, 255, 0.35), rgba(255, 255, 255, 0) 60%),
-    linear-gradient(180deg, #f8cd78 0%, var(--board) 45%, var(--board-alt) 100%);
+    radial-gradient(120% 80% at 50% 0%, var(--board-sheen), rgba(255, 255, 255, 0) 60%),
+    linear-gradient(180deg, var(--board-top) 0%, var(--board) 45%, var(--board-alt) 100%);
   border: 3px solid var(--board-rim);
   border-radius: 22px;
   box-shadow:
     inset 0 3px 0 rgba(255, 255, 255, 0.6),
-    inset 0 -4px 0 rgba(146, 96, 20, 0.35),
+    inset 0 -4px 0 var(--board-inner),
     0 10px 26px rgba(0, 0, 0, 0.42);
 }
 
@@ -153,7 +158,7 @@ body {
 /* Banding makes a long row of boxes readable across, the way ruled lines do
    on the printed card. */
 .board__row:nth-child(odd) {
-  background: rgba(255, 255, 255, 0.16);
+  background: var(--board-stripe);
 }
 
 /* Category tiles: the glossy red chips beside each box. */
@@ -315,7 +320,7 @@ body {
   line-height: 1.15;
   letter-spacing: 0.09em;
   text-transform: uppercase;
-  color: #8a5a12;
+  color: var(--label);
 }
 
 .board__bonus-label strong {
