@@ -31,6 +31,8 @@
   --danger: #d9452f;
 
   --tray-height: clamp(92px, 15vh, 132px);
+  --tile-size: clamp(38px, 10.4vw, 54px);
+  --slot-w: clamp(46px, 12.6vw, 66px);
   --font: 'Trebuchet MS', 'Segoe UI', system-ui, -apple-system, sans-serif;
   color-scheme: dark;
 }
@@ -158,8 +160,11 @@ body {
    to know how many players there are. */
 .board__half {
   display: grid;
-  grid-template-columns: auto repeat(var(--players, 1), minmax(0, 1fr));
+  /* Boxes keep a fixed, near-square footprint rather than stretching to fill
+     the row, which is what gives the card its grid-of-squares look. */
+  grid-template-columns: auto repeat(var(--players, 1), var(--slot-w));
   align-items: center;
+  justify-content: start;
   gap: 6px;
   min-width: 0;
 }
@@ -175,7 +180,7 @@ body {
   position: relative;
   display: grid;
   place-items: center;
-  width: clamp(32px, 8.6vw, 44px);
+  width: var(--tile-size);
   aspect-ratio: 1;
   color: #fff;
   background: linear-gradient(180deg, #ff8577 0%, var(--tile) 48%, #bd2a25 100%);
@@ -199,27 +204,41 @@ body {
 /* Straights pair their run of bars with the length of run they need. */
 .tile__stack {
   display: grid;
-  grid-template-columns: 1fr auto;
-  align-items: center;
-  gap: 1px;
-  width: 82%;
+  justify-items: center;
+  gap: 0;
+  width: 96%;
+  padding-top: 2px;
 }
 
-.tile__glyph--stairs {
+.tile__fan {
+  display: block;
   width: 100%;
   height: auto;
+  margin-bottom: -2px;
+  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.3));
 }
 
-.tile__count {
-  font-size: clamp(0.78rem, 2.9vw, 1rem);
-  font-weight: 900;
+.tile__label {
+  font-size: clamp(0.36rem, 1.62vw, 0.5rem);
+  font-weight: 800;
   line-height: 1;
-  color: var(--gold);
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+  letter-spacing: 0.06em;
+}
+
+/* The Yahtzee wordmark, set to fill its tile the way the printed one does. */
+.tile__word {
+  font-size: clamp(0.44rem, 1.92vw, 0.62rem);
+  font-weight: 900;
+  font-style: italic;
+  letter-spacing: -0.01em;
+  color: #ffd24a;
+  text-shadow:
+    0 0 2px #8a3a06, 0 1px 0 #8a3a06, 1px 0 0 #8a3a06,
+    -1px 0 0 #8a3a06, 0 -1px 0 #8a3a06, 0 2px 3px rgba(0, 0, 0, 0.5);
 }
 
 .tile__text {
-  font-size: clamp(1rem, 3.6vw, 1.3rem);
+  font-size: clamp(1.05rem, 4vw, 1.45rem);
   font-weight: 800;
   letter-spacing: 0.01em;
   text-shadow: 0 1.5px 2px rgba(0, 0, 0, 0.4);
@@ -264,8 +283,8 @@ body {
   display: grid;
   place-items: center;
   width: 100%;
-  height: clamp(30px, 7.4vw, 40px);
-  padding: 0 4px;
+  height: calc(var(--slot-w) * 0.86);
+  padding: 0 3px;
   font: inherit;
   font-size: clamp(0.95rem, 3.8vw, 1.25rem);
   font-weight: 800;
@@ -318,9 +337,9 @@ body {
 
 /* The bonus cell takes the place of a tile-and-box pair on the last row. */
 .board__bonus {
-  grid-template-columns: auto auto;
+  grid-template-columns: auto repeat(var(--players, 1), var(--slot-w));
   justify-content: start;
-  gap: 8px;
+  gap: 6px;
 }
 
 .board__bonus-label {
@@ -346,8 +365,9 @@ body {
   position: relative;
   display: grid;
   place-items: center;
-  width: clamp(44px, 11vw, 56px);
+  width: min(var(--slot-w), calc(var(--slot-w) * 0.86));
   aspect-ratio: 1;
+  justify-self: center;
   background:
     conic-gradient(var(--meter-fill) var(--fill, 0%), var(--meter-track) var(--fill, 0%));
   border-radius: 50%;
@@ -385,10 +405,10 @@ body {
   position: relative;
   height: var(--tray-height);
   flex: none;
-  background: linear-gradient(180deg, rgba(6, 34, 54, 0.72), rgba(4, 22, 38, 0.82));
-  border: 2px solid rgba(90, 200, 245, 0.28);
+  background: linear-gradient(180deg, rgba(6, 30, 50, 0.55), rgba(3, 18, 32, 0.7));
+  border: 2px solid rgba(90, 200, 245, 0.24);
   border-radius: 16px;
-  box-shadow: inset 0 3px 10px rgba(0, 0, 0, 0.45);
+  box-shadow: inset 0 3px 10px rgba(0, 0, 0, 0.4);
 }
 
 .dice-area {

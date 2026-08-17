@@ -84,14 +84,12 @@ export function Scorecard(): JSX.Element | null {
   const match = useGameStore((s) => s.match)
   if (!view) return null
 
-  const { card, preview, legal, game, activeColumn } = view
+  const { preview, legal, game, activeColumn } = view
   // Extra Yahtzees are worth a hundred each and used to be banked silently:
   // the total moved and nothing on the board said why.
   const yahtzeeBonus =
     (view.player.yahtzeeBonuses[activeColumn] ?? 0) * game.rules.yahtzeeBonusValue
-  const subtotal = upperSubtotal(card)
   const threshold = game.rules.upperBonusThreshold
-  const earned = subtotal >= threshold
   const players = game.players
   // A box may only be tapped by a human, on their own turn, on their own
   // device: an AI plays itself, and online the other seats are not yours.
@@ -139,17 +137,27 @@ export function Scorecard(): JSX.Element | null {
                   bonus
                   <strong>+{game.rules.upperBonusValue}</strong>
                 </span>
-                <span
-                  className={`meter ${earned ? 'is-earned' : ''}`}
-                  style={{
-                    // The ring fills clockwise with progress toward the bonus.
-                    ['--fill' as string]: `${Math.min(100, (subtotal / threshold) * 100)}%`,
-                  }}
-                >
-                  <span className="meter__value">
-                    {earned ? `+${game.rules.upperBonusValue}` : `${subtotal}/${threshold}`}
-                  </span>
-                </span>
+                {/* One meter per player, so both cards' progress towards the
+                    bonus is on the board rather than only the current one. */}
+                {players.map((player) => {
+                  const theirCard = player.cards[activeColumn] ?? {}
+                  const theirSubtotal = upperSubtotal(theirCard)
+                  const theirEarned = theirSubtotal >= threshold
+                  return (
+                    <span
+                      key={player.id}
+                      className={`meter ${theirEarned ? 'is-earned' : ''}`}
+                      style={{
+                        ['--fill' as string]: `${Math.min(100, (theirSubtotal / threshold) * 100)}%`,
+                      }}
+                      aria-label={`${player.name} upper section ${theirSubtotal} of ${threshold}`}
+                    >
+                      <span className="meter__value">
+                        {theirEarned ? `+${game.rules.upperBonusValue}` : `${theirSubtotal}/${threshold}`}
+                      </span>
+                    </span>
+                  )
+                })}
               </div>
             )}
             <div className="board__half">

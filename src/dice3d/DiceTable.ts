@@ -41,11 +41,32 @@ const easeOutBack = (t: number): number => {
 
 interface DieView {
   mesh: THREE.Mesh
+  /** The empty place this die belongs in, drawn on the table itself. */
+  socket: THREE.Mesh
   ring: THREE.Mesh
   held: boolean
   /** Ring opacity and lift are eased rather than snapped. */
   heldAmount: number
   slot: number
+}
+
+/** A rounded square, used for the empty places dice rest in. Drawn as scene
+ *  geometry rather than page markup because it has to line up with the dice
+ *  exactly, and the camera framing that decides where those land shifts with
+ *  the screen. */
+function roundedSquare(size: number, radius: number): THREE.ShapeGeometry {
+  const half = size / 2
+  const shape = new THREE.Shape()
+  shape.moveTo(-half + radius, -half)
+  shape.lineTo(half - radius, -half)
+  shape.quadraticCurveTo(half, -half, half, -half + radius)
+  shape.lineTo(half, half - radius)
+  shape.quadraticCurveTo(half, half, half - radius, half)
+  shape.lineTo(-half + radius, half)
+  shape.quadraticCurveTo(-half, half, -half, half - radius)
+  shape.lineTo(-half, -half + radius)
+  shape.quadraticCurveTo(-half, -half, -half + radius, -half)
+  return new THREE.ShapeGeometry(shape, 8)
 }
 
 export class DiceTable {
@@ -175,15 +196,48 @@ export class DiceTable {
   setDiceCount(count: number): void {
     while (this.dice.length > count) {
       const view = this.dice.pop() as DieView
-      this.scene.remove(view.mesh, view.ring)
+      this.scene.remove(view.mesh, view.ring, view.socket)
       ;(view.ring.material as THREE.Material).dispose()
       view.ring.geometry.dispose()
+      view.socket.traverse((child) => {
+        if (child instanceof THREE.Mesh) {
+          child.geometry.dispose()
+          ;(child.material as THREE.Material).dispose()
+        }
+      })
     }
     while (this.dice.length < count) {
       const mesh = new THREE.Mesh(this.geometry, this.materials)
       mesh.castShadow = true
       mesh.receiveShadow = false
       this.scene.add(mesh)
+
+      const socket = new THREE.Mesh(
+        roundedSquare(DIE_SIZE * 1.16, DIE_SIZE * 0.2),
+        new THREE.MeshBasicMaterial({
+          color: 0x061c2e,
+          transparent: true,
+          opacity: 0.72,
+          depthWrite: false,
+        }),
+      )
+      socket.rotation.x = -Math.PI / 2
+      socket.position.y = 0.004
+      this.scene.add(socket)
+
+      const socketRim = new THREE.Mesh(
+        roundedSquare(DIE_SIZE * 1.24, DIE_SIZE * 0.22),
+        new THREE.MeshBasicMaterial({
+          color: 0x4fc3f0,
+          transparent: true,
+          opacity: 0.34,
+          depthWrite: false,
+        }),
+      )
+      socketRim.rotation.x = -Math.PI / 2
+      socketRim.position.y = 0.002
+      socket.add(socketRim)
+      socketRim.position.set(0, 0, -0.002)
 
       const ring = new THREE.Mesh(
         new THREE.RingGeometry(DIE_SIZE * 0.66, DIE_SIZE * 0.84, 40),
@@ -199,7 +253,7 @@ export class DiceTable {
       ring.position.y = 0.012
       this.scene.add(ring)
 
-      this.dice.push({ mesh, ring, held: false, heldAmount: 0, slot: this.dice.length })
+      this.dice.push({ mesh, socket, ring, held: false, heldAmount: 0, slot: this.dice.length })
     }
     this.layoutSlots()
     this.computeFraming()
@@ -219,6 +273,7 @@ export class DiceTable {
       const target = this.slotPosition(i, this.dice.length)
       view.mesh.position.copy(target)
       view.ring.position.set(target.x, 0.012, target.z)
+      view.socket.position.set(target.x, 0.004, target.z)
     })
   }
 
@@ -511,7 +566,7 @@ export class DiceTable {
     this.resizeObserver.disconnect()
     this.renderer.domElement.removeEventListener('pointerdown', this.handlePointerDown)
     for (const view of this.dice) {
-      this.scene.remove(view.mesh, view.ring)
+      this.scene.remove(view.mesh, view.ring, view.socket)
       view.ring.geometry.dispose()
       ;(view.ring.material as THREE.Material).dispose()
     }
