@@ -11,6 +11,13 @@ import { useGameStore, useTurnView } from '@/state/gameStore'
 import { DieFace } from './DieFace'
 import { CategoryIcon } from './CategoryIcon'
 
+/** Boxes that wear a star: the two straights and Yahtzee. */
+const STARRED: ReadonlySet<CategoryId> = new Set<CategoryId>([
+  'smallStraight',
+  'largeStraight',
+  'yahtzee',
+])
+
 interface CellProps {
   category: CategoryId
   /** Optional flash of gold on the tile, e.g. banked Yahtzee bonuses. */
@@ -47,9 +54,12 @@ function Cell({
 }: CellProps): JSX.Element {
   return (
     <>
-      <span className="tile" aria-hidden="true">
+      <span
+        className={`tile ${STARRED.has(category) ? 'tile--starred' : ''}`}
+        aria-hidden="true"
+      >
         {children}
-        {badge && <span className="tile__bonus">{badge}</span>}
+        {badge && <span className="tile__star">{badge}</span>}
       </span>
       {players.map((player, index) => {
         const filled = player.cards[column]?.[category]
@@ -106,8 +116,7 @@ export function Scorecard(): JSX.Element | null {
   const { preview, legal, game, activeColumn } = view
   // Extra Yahtzees are worth a hundred each and used to be banked silently:
   // the total moved and nothing on the board said why.
-  const yahtzeeBonus =
-    (view.player.yahtzeeBonuses[activeColumn] ?? 0) * game.rules.yahtzeeBonusValue
+  const bonusCount = view.player.yahtzeeBonuses[activeColumn] ?? 0
   const threshold = game.rules.upperBonusThreshold
   const players = game.players
   // A box may only be tapped by a human, on their own turn, on their own
@@ -136,7 +145,11 @@ export function Scorecard(): JSX.Element | null {
     <section
       className="board"
       aria-label="Scorecard"
-      style={{ ['--players' as string]: players.length }}
+      style={{
+        ['--players' as string]: players.length,
+        // The rule between columns only means anything with someone to divide.
+        ['--divider' as string]: players.length > 1 ? 1 : 0,
+      }}
     >
       <div className="board__grid">
         {rows.map(({ upper, lower }) => (
@@ -162,7 +175,7 @@ export function Scorecard(): JSX.Element | null {
                 </span>
                 {/* One meter per player, so both cards' progress towards the
                     bonus is on the board rather than only the current one. */}
-                {players.map((player) => {
+                {players.map((player, seat) => {
                   const theirCard = player.cards[activeColumn] ?? {}
                   const theirSubtotal = upperSubtotal(theirCard)
                   const theirEarned = theirSubtotal >= threshold
@@ -178,6 +191,7 @@ export function Scorecard(): JSX.Element | null {
                       <span className="meter__value">
                         {theirEarned ? `+${game.rules.upperBonusValue}` : `${theirSubtotal}/${threshold}`}
                       </span>
+                      {seat === 0 && <span className="meter__info">i</span>}
                     </span>
                   )
                 })}
@@ -189,7 +203,9 @@ export function Scorecard(): JSX.Element | null {
                 category={lower}
                 preview={preview[lower]}
                 legal={legal.has(lower)}
-                badge={lower === 'yahtzee' && yahtzeeBonus > 0 ? `+${yahtzeeBonus}` : undefined}
+                badge={
+                  lower === 'yahtzee' && bonusCount > 0 ? String(bonusCount) : undefined
+                }
               >
                 <CategoryIcon category={lower} />
               </Cell>
