@@ -2,51 +2,18 @@ import { useEffect, useState } from 'react'
 import { RULE_SETS, type VariantId } from '@/engine/types'
 import { grandTotal, type AiLevel, type PlayerConfig } from '@/engine/game'
 import { dailyKey, dailySeed } from '@/engine/rng'
-import { DICE_SKINS } from '@/dice3d/diceGeometry'
-import { unlockedSkins, averageScore } from '@/progression/achievements'
+import { averageScore } from '@/progression/achievements'
 import { useGameStore, useTurnView } from '@/state/gameStore'
-import {
-  DICE_SPEED_LABELS,
-  DICE_SPEED_RATES,
-  useProfileStore,
-  type DiceSpeed,
-} from '@/state/profileStore'
+import { useProfileStore } from '@/state/profileStore'
 import { DiceArea } from './DiceArea'
 import { Scorecard } from './Scorecard'
 import { ColumnTabs } from './ColumnTabs'
 import { Celebration } from './Celebration'
 import { Rewards } from './Rewards'
 import { Lobby } from './Lobby'
+import { Settings } from './Settings'
+import { applyBoardTheme } from './themes'
 import { useOnlineStore } from '@/state/onlineStore'
-
-function SkinPicker(): JSX.Element {
-  const stats = useProfileStore((s) => s.stats)
-  const selected = useProfileStore((s) => s.selectedSkin)
-  const select = useProfileStore((s) => s.selectSkin)
-  const unlocked = new Set(unlockedSkins(stats))
-
-  return (
-    <div className="skins" aria-label="Dice">
-      {Object.values(DICE_SKINS).map((skin) => {
-        const owned = unlocked.has(skin.id)
-        return (
-          <button
-            key={skin.id}
-            type="button"
-            className={`skin ${selected === skin.id ? 'is-selected' : ''} ${owned ? '' : 'is-locked'}`}
-            style={{ background: skin.body, color: skin.pip }}
-            disabled={!owned}
-            onClick={() => select(skin.id)}
-            aria-label={owned ? skin.name : `${skin.name}, locked`}
-            title={owned ? skin.name : 'Locked'}
-          >
-            {owned ? '⬤' : '🔒'}
-          </button>
-        )
-      })}
-    </div>
-  )
-}
 
 const OPPONENTS: { id: AiLevel | 'solo'; label: string }[] = [
   { id: 'solo', label: 'Solo' },
@@ -56,34 +23,37 @@ const OPPONENTS: { id: AiLevel | 'solo'; label: string }[] = [
   { id: 'expert', label: 'Expert' },
 ]
 
-function SpeedButton({ speed }: { speed: DiceSpeed }): JSX.Element {
-  const current = useProfileStore((s) => s.diceSpeed)
-  const setSpeed = useProfileStore((s) => s.setDiceSpeed)
-  return (
-    <button
-      type="button"
-      className={`opponent opponent--speed ${current === speed ? 'is-selected' : ''}`}
-      onClick={() => setSpeed(speed)}
-    >
-      {DICE_SPEED_LABELS[speed]}
-    </button>
-  )
-}
-
 interface StartProps {
   onStart: (variant: VariantId) => void
   onDaily: () => void
   onOnline: () => void
+  onSettings: () => void
   opponent: AiLevel | 'solo'
   onOpponent: (id: AiLevel | 'solo') => void
 }
 
-function StartScreen({ onStart, onDaily, onOnline, opponent, onOpponent }: StartProps): JSX.Element {
+function StartScreen({
+  onStart, onDaily, onOnline, onSettings, opponent, onOpponent,
+}: StartProps): JSX.Element {
   const stats = useProfileStore((s) => s.stats)
   const todayDone = stats.lastDailyKey === dailyKey()
 
   return (
     <div className="screen screen--start">
+      <button
+        type="button"
+        className="iconbutton iconbutton--corner"
+        onClick={onSettings}
+        aria-label="Settings"
+      >
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M12 15.6a3.6 3.6 0 1 0 0-7.2 3.6 3.6 0 0 0 0 7.2Z" fill="none"
+            stroke="currentColor" strokeWidth="2" />
+          <path d="M19.4 15a1.7 1.7 0 0 0 .34 1.87l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-2.9 1.2V21a2 2 0 1 1-4 0v-.09A1.7 1.7 0 0 0 7 19.4a1.7 1.7 0 0 0-1.87.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.7 1.7 0 0 0 3 15a1.7 1.7 0 0 0-1.56-1H1a2 2 0 1 1 0-4h.09A1.7 1.7 0 0 0 2.6 7a1.7 1.7 0 0 0-.34-1.87l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.7 1.7 0 0 0 7 2.6h.08A1.7 1.7 0 0 0 8.6 1V1a2 2 0 1 1 4 0v.09a1.7 1.7 0 0 0 1 1.56 1.7 1.7 0 0 0 1.87-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.7 1.7 0 0 0 21.4 7v.08a1.7 1.7 0 0 0 1.56 1.02H23a2 2 0 1 1 0 4h-.09a1.7 1.7 0 0 0-1.51 1Z"
+            fill="none" stroke="currentColor" strokeWidth="1.6" transform="scale(0.86) translate(2 2)" />
+        </svg>
+      </button>
+
       <h1 className="title">YAHTZEE</h1>
 
       {stats.gamesPlayed > 0 && (
@@ -117,12 +87,6 @@ function StartScreen({ onStart, onDaily, onOnline, opponent, onOpponent }: Start
         ))}
       </div>
 
-      <div className="opponents" role="group" aria-label="Dice speed">
-        {(Object.keys(DICE_SPEED_RATES) as DiceSpeed[]).map((speed) => (
-          <SpeedButton key={speed} speed={speed} />
-        ))}
-      </div>
-
       <div className="opponents" role="group" aria-label="Opponent">
         {OPPONENTS.map((choice) => (
           <button
@@ -135,8 +99,6 @@ function StartScreen({ onStart, onDaily, onOnline, opponent, onOpponent }: Start
           </button>
         ))}
       </div>
-
-      <SkinPicker />
     </div>
   )
 }
@@ -262,12 +224,19 @@ export function App(): JSX.Element {
   const newGame = useGameStore((s) => s.newGame)
   const runAiTurn = useGameStore((s) => s.runAiTurn)
   const [started, setStarted] = useState(false)
-  const [screen, setScreen] = useState<'menu' | 'lobby'>('menu')
+  const [screen, setScreen] = useState<'menu' | 'lobby' | 'settings'>('menu')
   const [confirmingHome, setConfirmingHome] = useState(false)
   const [opponent, setOpponent] = useState<AiLevel | 'solo'>('solo')
   const onlineStatus = useOnlineStore((s) => s.status)
   const onlineSetup = useOnlineStore((s) => s.setup)
   const onlineActive = onlineSetup !== null && onlineStatus === 'playing'
+  const boardTheme = useProfileStore((s) => s.boardTheme)
+
+  // Themes paint CSS variables on the document, so this runs outside React's
+  // tree and has to be reapplied whenever the choice changes.
+  useEffect(() => {
+    applyBoardTheme(boardTheme)
+  }, [boardTheme])
 
   const roster = (): PlayerConfig[] => {
     const you: PlayerConfig = { id: 'p1', name: 'You' }
@@ -317,6 +286,14 @@ export function App(): JSX.Element {
     else goHome()
   }
 
+  if (screen === 'settings' && !onlineActive) {
+    return (
+      <div className="app">
+        <Settings onBack={() => setScreen('menu')} />
+      </div>
+    )
+  }
+
   if (screen === 'lobby' && !onlineActive) {
     return (
       <div className="app">
@@ -332,6 +309,7 @@ export function App(): JSX.Element {
           onStart={start}
           onDaily={startDaily}
           onOnline={() => setScreen('lobby')}
+          onSettings={() => setScreen('settings')}
           opponent={opponent}
           onOpponent={setOpponent}
         />

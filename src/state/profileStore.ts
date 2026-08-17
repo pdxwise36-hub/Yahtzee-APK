@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import { DEFAULT_BOARD_THEME } from '@/ui/themes'
 import {
   EMPTY_STATS,
   applyGame,
@@ -32,6 +33,7 @@ interface StoredProfile {
   stats: Stats
   selectedSkin: string
   diceSpeed: DiceSpeed
+  boardTheme: string
 }
 
 /** Reading a profile must never take the game down: a corrupted or
@@ -43,6 +45,7 @@ function loadProfile(): StoredProfile {
     stats: EMPTY_STATS,
     selectedSkin: 'ivory',
     diceSpeed: 'normal',
+    boardTheme: DEFAULT_BOARD_THEME,
   }
   try {
     const raw = localStorage.getItem(STORAGE_KEY)
@@ -54,6 +57,7 @@ function loadProfile(): StoredProfile {
       diceSpeed: parsed.diceSpeed && parsed.diceSpeed in DICE_SPEED_RATES
         ? parsed.diceSpeed
         : 'normal',
+      boardTheme: parsed.boardTheme ?? DEFAULT_BOARD_THEME,
     }
   } catch {
     return fallback
@@ -73,11 +77,13 @@ export interface ProfileStore {
   stats: Stats
   selectedSkin: string
   diceSpeed: DiceSpeed
+  boardTheme: string
   /** Achievements unlocked by the most recent game, for the reward popup. */
   pendingRewards: Achievement[]
   recordGame: (summary: GameSummary) => void
   selectSkin: (skinId: string) => void
   setDiceSpeed: (speed: DiceSpeed) => void
+  setBoardTheme: (themeId: string) => void
   dismissRewards: () => void
   resetProfile: () => void
 }
@@ -89,13 +95,14 @@ export const useProfileStore = create<ProfileStore>((set, get) => {
     stats: initial.stats,
     selectedSkin: initial.selectedSkin,
     diceSpeed: initial.diceSpeed,
+    boardTheme: initial.boardTheme,
     pendingRewards: [],
 
     recordGame: (summary) => {
       const before = get().stats
       const after = applyGame(before, summary)
       const rewards = newlyUnlocked(before, after)
-      saveProfile({ stats: after, selectedSkin: get().selectedSkin, diceSpeed: get().diceSpeed })
+      persist(get(), { stats: after })
       set({ stats: after, pendingRewards: rewards })
     },
 
@@ -103,23 +110,40 @@ export const useProfileStore = create<ProfileStore>((set, get) => {
       // Guards against a skin selected in a previous build, or edited storage,
       // that this profile has not actually earned.
       if (!unlockedSkins(get().stats).includes(skinId)) return
-      saveProfile({ stats: get().stats, selectedSkin: skinId, diceSpeed: get().diceSpeed })
+      persist(get(), { selectedSkin: skinId })
       set({ selectedSkin: skinId })
     },
 
     setDiceSpeed: (speed) => {
-      saveProfile({ stats: get().stats, selectedSkin: get().selectedSkin, diceSpeed: speed })
+      persist(get(), { diceSpeed: speed })
       set({ diceSpeed: speed })
+    },
+
+    setBoardTheme: (themeId) => {
+      persist(get(), { boardTheme: themeId })
+      set({ boardTheme: themeId })
     },
 
     dismissRewards: () => set({ pendingRewards: [] }),
 
     resetProfile: () => {
-      saveProfile({ stats: EMPTY_STATS, selectedSkin: 'ivory', diceSpeed: get().diceSpeed })
+      persist(get(), { stats: EMPTY_STATS, selectedSkin: 'ivory' })
       set({ stats: EMPTY_STATS, selectedSkin: 'ivory', pendingRewards: [] })
     },
   }
 })
+
+/** Write the whole profile, taking current values for anything not changing.
+ *  Saving field by field is how a setting quietly gets dropped. */
+function persist(current: ProfileStore, changes: Partial<StoredProfile>): void {
+  saveProfile({
+    stats: current.stats,
+    selectedSkin: current.selectedSkin,
+    diceSpeed: current.diceSpeed,
+    boardTheme: current.boardTheme,
+    ...changes,
+  })
+}
 
 export function availableSkins(stats: Stats): string[] {
   return unlockedSkins(stats)
