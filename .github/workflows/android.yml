@@ -16,7 +16,8 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          # The Capacitor CLI requires Node 22 or newer.
+          node-version: 22
           cache: npm
 
       - name: Install dependencies
