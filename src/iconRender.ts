@@ -25,51 +25,67 @@ interface Variant {
 }
 
 const VARIANTS: Variant[] = [
+  // Eight different ideas rather than one idea in eight colours. A launcher
+  // shows this at about the size of a fingernail, so each is built around a
+  // single shape that survives being shrunk.
   {
-    id: 'hero',
-    background: ['#2a9bf0', '#06407a'],
+    id: 'classic',
+    background: ['#33a7ff', '#0b3f78'],
     glow: 'rgba(255,231,150,0.55)',
     dice: [{ skin: 'ivory', value: 5, position: [0, 0, 0], tilt: [-0.34, 0.62, 0.12], scale: 1.42 }],
   },
   {
-    id: 'pair',
-    background: ['#2a9bf0', '#06407a'],
-    glow: 'rgba(255,231,150,0.5)',
-    dice: [
-      { skin: 'ivory', value: 5, position: [-0.52, -0.28, 0], tilt: [-0.3, 0.5, 0.18], scale: 1.12 },
-      { skin: 'gold', value: 1, position: [0.62, 0.42, -0.4], tilt: [-0.25, -0.5, -0.22], scale: 0.98 },
-    ],
-  },
-  {
-    id: 'yahtzee',
-    background: ['#2a9bf0', '#06407a'],
-    glow: 'rgba(255,216,94,0.62)',
-    dice: [
-      { skin: 'ivory', value: 5, position: [-0.86, -0.42, 0.1], tilt: [-0.3, 0.42, 0.14], scale: 0.94 },
-      { skin: 'ivory', value: 5, position: [0.08, 0.06, -0.2], tilt: [-0.32, 0.05, -0.05], scale: 1.02 },
-      { skin: 'ivory', value: 5, position: [0.94, 0.5, -0.5], tilt: [-0.28, -0.44, -0.16], scale: 0.9 },
-    ],
-  },
-  {
-    id: 'ruby',
-    background: ['#2a9bf0', '#06407a'],
-    glow: 'rgba(255,150,150,0.45)',
-    dice: [{ skin: 'ruby', value: 5, position: [0, 0, 0], tilt: [-0.34, 0.62, 0.12], scale: 1.42 }],
-  },
-  {
-    id: 'night',
-    background: ['#123a63', '#04182e'],
-    glow: 'rgba(255,216,94,0.7)',
+    id: 'gold',
+    background: ['#1c2f4c', '#050c18'],
+    glow: 'rgba(255,206,84,0.6)',
     dice: [{ skin: 'gold', value: 5, position: [0, 0, 0], tilt: [-0.34, 0.62, 0.12], scale: 1.42 }],
   },
   {
-    id: 'duo-red',
-    background: ['#2a9bf0', '#06407a'],
-    glow: 'rgba(255,231,150,0.5)',
+    // Most launchers sit on a dark wallpaper, so a pale tile is the one that
+    // stands out in a drawer full of dark ones.
+    id: 'cream',
+    background: ['#fdf4e0', '#e3cfa4'],
+    glow: 'rgba(255,255,255,0.5)',
+    dice: [{ skin: 'ruby', value: 5, position: [0, 0, 0], tilt: [-0.34, 0.62, 0.12], scale: 1.42 }],
+  },
+  {
+    id: 'ink',
+    background: ['#f2f5f9', '#b9c6d6'],
+    glow: 'rgba(255,255,255,0.55)',
+    dice: [{ skin: 'midnight', value: 5, position: [0, 0, 0], tilt: [-0.34, 0.62, 0.12], scale: 1.42 }],
+  },
+  {
+    id: 'felt',
+    background: ['#2a8f5e', '#0a3a24'],
+    glow: 'rgba(255,240,190,0.4)',
     dice: [
-      { skin: 'ivory', value: 5, position: [-0.5, -0.3, 0], tilt: [-0.3, 0.52, 0.16], scale: 1.14 },
-      { skin: 'ruby', value: 1, position: [0.64, 0.44, -0.4], tilt: [-0.24, -0.48, -0.2], scale: 0.98 },
+      { skin: 'ivory', value: 5, position: [-0.5, -0.3, 0], tilt: [-0.3, 0.52, 0.16], scale: 1.2 },
+      { skin: 'ruby', value: 1, position: [0.66, 0.46, -0.4], tilt: [-0.24, -0.48, -0.2], scale: 1.02 },
     ],
+  },
+  {
+    // Three fives, which is the game itself said without a word of text.
+    id: 'trio',
+    background: ['#33a7ff', '#0b3f78'],
+    glow: 'rgba(255,216,94,0.62)',
+    dice: [
+      { skin: 'ivory', value: 5, position: [-0.78, -0.44, 0.1], tilt: [-0.3, 0.44, 0.14], scale: 1.02 },
+      { skin: 'ivory', value: 5, position: [0.06, 0.02, -0.2], tilt: [-0.32, 0.05, -0.05], scale: 1.1 },
+      { skin: 'ivory', value: 5, position: [0.88, 0.48, -0.5], tilt: [-0.28, -0.46, -0.16], scale: 0.98 },
+    ],
+  },
+  {
+    // The themed dice as the icon: nobody else's dice app looks like this.
+    id: 'burger',
+    background: ['#ffb648', '#c8471a'],
+    glow: 'rgba(255,244,214,0.5)',
+    dice: [{ skin: 'fastFood', value: 6, position: [0, 0, 0], tilt: [-0.3, 0.5, 0.1], scale: 1.42 }],
+  },
+  {
+    id: 'monster',
+    background: ['#5b2c93', '#1b0b38'],
+    glow: 'rgba(226,180,255,0.5)',
+    dice: [{ skin: 'monster', value: 6, position: [0, 0, 0], tilt: [-0.3, 0.5, 0.1], scale: 1.42 }],
   },
 ]
 
@@ -134,7 +150,7 @@ function render(variant: Variant): void {
 
   scene.add(new THREE.HemisphereLight(0xeaf3ff, 0x0c2438, 0.5))
   const key = new THREE.DirectionalLight(0xfff6e6, 2.4)
-  key.position.set(-2.4, 5.0, 3.4)
+  key.position.set(-1.7, 6.2, 2.8)
   key.castShadow = true
   key.shadow.mapSize.set(2048, 2048)
   key.shadow.camera.left = -5
@@ -142,7 +158,7 @@ function render(variant: Variant): void {
   key.shadow.camera.top = 5
   key.shadow.camera.bottom = -5
   key.shadow.bias = -0.0012
-  key.shadow.radius = 4
+  key.shadow.radius = 12
   scene.add(key)
   // Rim light along the far edge, which is what makes a die look solid.
   const rim = new THREE.DirectionalLight(0x9fd0ff, 1.5)
@@ -150,12 +166,15 @@ function render(variant: Variant): void {
   scene.add(rim)
 
   // Catches the drop shadow without drawing a surface of its own.
+  // Kept faint and heavily blurred: at full opacity a cube's shadow is a hard
+  // slab, and the icon reads as a die sitting on a grey plate rather than as a
+  // die thrown onto a surface.
   const floor = new THREE.Mesh(
     new THREE.PlaneGeometry(24, 24),
-    new THREE.ShadowMaterial({ opacity: 0.5 }),
+    new THREE.ShadowMaterial({ opacity: 0.26 }),
   )
   floor.rotation.x = -Math.PI / 2
-  floor.position.y = -1.12
+  floor.position.y = -0.98
   floor.receiveShadow = true
   scene.add(floor)
 
