@@ -73,6 +73,10 @@ export interface Transport {
 
   submitMove(matchId: string, signed: SignedMove): Promise<SubmitResult>
 
+  /** Establish a durable identity, where the backend has a notion of one.
+   *  Absent on transports that do not authenticate. */
+  ensureSession?: () => Promise<string>
+
   /** Live updates. Returns an unsubscribe function. */
   subscribe(
     matchId: string,

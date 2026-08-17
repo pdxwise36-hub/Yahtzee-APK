@@ -16,6 +16,7 @@ import type { CategoryId, DieValue, VariantId } from '@/engine/types'
 import { createRng, randomSeed } from '@/engine/rng'
 import { aiColumn, aiHolds, aiMove } from '@/ai/autoplay'
 import { generateRoll } from '@/dice3d/physicsRoll'
+import type { MatchClient } from '@/net/MatchClient'
 import type { DiceTable } from '@/dice3d/DiceTable'
 import { ALL_CATEGORIES } from '@/engine/types'
 import { upperBonus } from '@/engine/scoring'
@@ -33,6 +34,8 @@ export interface GameStore {
   dailyKey: string | null
   /** True while an AI opponent is taking its turn. */
   aiThinking: boolean
+  /** Set when this game is a networked match rather than a local one. */
+  match: MatchClient | null
 
   attachTable: (table: DiceTable | null) => void
   newGame: (
@@ -48,6 +51,10 @@ export interface GameStore {
   dismissCelebration: () => void
   /** Play the current AI player's whole turn, at a watchable pace. */
   runAiTurn: () => Promise<void>
+  /** Take over a networked match; null returns the store to local play. */
+  setMatch: (match: MatchClient | null) => void
+  /** Fold in state derived from the match's move log, animating any roll. */
+  syncFromMatch: (next: GameState) => Promise<void>
 }
 
 export const useGameStore = create<GameStore>((set, get) => ({
@@ -58,6 +65,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
   table: null,
   dailyKey: null,
   aiThinking: false,
+  match: null,
 
   attachTable: (table) => {
     set({ table })
@@ -80,8 +88,15 @@ export const useGameStore = create<GameStore>((set, get) => ({
   },
 
   roll: async () => {
-    const { game, table, rolling } = get()
+    const { game, table, rolling, match } = get()
     if (!game || rolling) return
+
+    // Online, a roll is a move for every device to replay rather than a local
+    // mutation. The animation runs when the resulting state comes back.
+    if (match) {
+      await match.send({ type: 'roll' })
+      return
+    }
 
     const next = rollDice(game)
     if (next === game) return
@@ -110,8 +125,12 @@ export const useGameStore = create<GameStore>((set, get) => ({
   },
 
   hold: (dieId) => {
-    const { game, rolling, table } = get()
+    const { game, rolling, table, match } = get()
     if (!game || rolling) return
+    if (match) {
+      void match.send({ type: 'hold', dieId })
+      return
+    }
     const next = toggleHold(game, dieId)
     if (next === game) return
     table?.setHeld(next.dice.map((d) => d.held))
@@ -119,8 +138,12 @@ export const useGameStore = create<GameStore>((set, get) => ({
   },
 
   score: (category, column) => {
-    const { game, rolling, activeColumn, table, dailyKey } = get()
+    const { game, rolling, activeColumn, table, dailyKey, match } = get()
     if (!game || rolling) return
+    if (match) {
+      void match.send({ type: 'score', category, column: column ?? activeColumn })
+      return
+    }
     const result = scoreSelection(game, category, column ?? activeColumn)
     if (result.state === game) return
     table?.setHeld(result.state.dice.map(() => false))
@@ -129,6 +152,49 @@ export const useGameStore = create<GameStore>((set, get) => ({
     if (result.state.phase === 'gameOver') {
       recordFinishedGame(result.state, dailyKey)
     }
+  },
+
+  setMatch: (match) => {
+    set({ match, dailyKey: null })
+    if (match) {
+      set({ game: match.gameState, rolling: false, celebrating: false, activeColumn: 0 })
+      const table = get().table
+      table?.setDiceCount(match.gameState.dice.length)
+      table?.showValues(diceValues(match.gameState))
+    }
+  },
+
+  /** Bring the local view up to a state derived from the move log.
+   *
+   *  A roll is animated exactly as a local one would be, whichever device made
+   *  it, so watching an opponent's turn looks the same as taking your own.
+   *  Everything else applies immediately. */
+  syncFromMatch: async (next) => {
+    const { game: prev, table } = get()
+
+    const rolled =
+      prev !== null &&
+      next.rollsUsed > prev.rollsUsed &&
+      next.turnNumber === prev.turnNumber &&
+      next.currentPlayer === prev.currentPlayer
+
+    if (!rolled || !table) {
+      set({ game: next, celebrating: next.lastRollWasYahtzee })
+      table?.setHeld(next.dice.map((d) => d.held))
+      if (!rolled) table?.showValues(diceValues(next))
+      return
+    }
+
+    // Held dice keep their value and must not be thrown again.
+    const movedIndices = prev.dice
+      .map((die, i) => (prev.rollsUsed === 0 || !die.held ? i : -1))
+      .filter((i) => i >= 0)
+    const movedValues = movedIndices.map((i) => next.dice[i]?.value as DieValue)
+
+    set({ rolling: true })
+    await table.playRoll(generateRoll(movedValues, next.rngState), movedIndices)
+    table.setHeld(next.dice.map((d) => d.held))
+    set({ game: next, rolling: false, celebrating: next.lastRollWasYahtzee })
   },
 
   setActiveColumn: (column) => set({ activeColumn: column }),

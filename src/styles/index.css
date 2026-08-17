@@ -796,3 +796,145 @@ body {
   font-size: 0.78rem;
   padding: 6px 12px;
 }
+
+/* ---------- online lobby ---------- */
+
+.variant--online {
+  background: linear-gradient(180deg, #7fe0ff, var(--cyan));
+  border-color: var(--cyan-deep);
+  box-shadow: 0 5px 0 var(--cyan-deep), 0 12px 20px rgba(0, 0, 0, 0.3);
+}
+
+.variant--online strong,
+.variant--online span {
+  color: #06364d;
+}
+
+.variant.is-selected {
+  outline: 3px solid var(--gold);
+  outline-offset: 2px;
+}
+
+.lobby__title {
+  margin: 0;
+  font-size: 1.6rem;
+  color: var(--gold);
+}
+
+.lobby__hint {
+  margin: 0;
+  font-size: 0.86rem;
+  opacity: 0.8;
+}
+
+/* Big and widely spaced, because this gets read out loud. */
+.lobby__code {
+  padding: 12px 22px;
+  font-size: clamp(2rem, 12vw, 3rem);
+  font-weight: 900;
+  letter-spacing: 0.28em;
+  text-indent: 0.28em;
+  color: var(--ink);
+  background: linear-gradient(180deg, #fffdf5, var(--slot));
+  border: 3px solid var(--board-rim);
+  border-radius: 14px;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
+}
+
+.lobby__players {
+  display: grid;
+  gap: 6px;
+  width: min(320px, 100%);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.lobby__players li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  background: rgba(0, 0, 0, 0.26);
+  border-radius: 12px;
+}
+
+.lobby__players em {
+  font-size: 0.72rem;
+  font-style: normal;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--gold);
+}
+
+.lobby__warning,
+.lobby__error {
+  max-width: 340px;
+  margin: 0;
+  font-size: 0.78rem;
+  line-height: 1.4;
+}
+
+.lobby__warning {
+  opacity: 0.75;
+}
+
+.lobby__error {
+  color: #ffd2c6;
+  font-weight: 700;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  width: min(320px, 100%);
+  font-size: 0.78rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  opacity: 0.85;
+}
+
+.field input,
+.joinrow input {
+  padding: 12px 14px;
+  font: inherit;
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--ink);
+  background: var(--slot);
+  border: 2px solid var(--slot-rim);
+  border-radius: 12px;
+}
+
+.joinrow {
+  display: flex;
+  gap: 8px;
+  width: min(320px, 100%);
+}
+
+.joinrow input {
+  flex: 1;
+  min-width: 0;
+  text-align: center;
+  letter-spacing: 0.3em;
+  text-indent: 0.3em;
+  text-transform: uppercase;
+}
+
+.joinrow .button--primary {
+  padding: 12px 22px;
+  font-size: 0.95rem;
+}
+
+.linkbutton {
+  padding: 8px 12px;
+  font: inherit;
+  font-size: 0.85rem;
+  color: var(--cream);
+  text-decoration: underline;
+  background: none;
+  border: none;
+  cursor: pointer;
+  opacity: 0.8;
+}

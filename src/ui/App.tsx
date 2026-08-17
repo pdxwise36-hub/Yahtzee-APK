@@ -15,6 +15,8 @@ import { DiceArea } from './DiceArea'
 import { Scorecard } from './Scorecard'
 import { Celebration } from './Celebration'
 import { Rewards } from './Rewards'
+import { Lobby } from './Lobby'
+import { useOnlineStore } from '@/state/onlineStore'
 
 function SkinPicker(): JSX.Element {
   const stats = useProfileStore((s) => s.stats)
@@ -70,11 +72,12 @@ function SpeedButton({ speed }: { speed: DiceSpeed }): JSX.Element {
 interface StartProps {
   onStart: (variant: VariantId) => void
   onDaily: () => void
+  onOnline: () => void
   opponent: AiLevel | 'solo'
   onOpponent: (id: AiLevel | 'solo') => void
 }
 
-function StartScreen({ onStart, onDaily, opponent, onOpponent }: StartProps): JSX.Element {
+function StartScreen({ onStart, onDaily, onOnline, opponent, onOpponent }: StartProps): JSX.Element {
   const stats = useProfileStore((s) => s.stats)
   const todayDone = stats.lastDailyKey === dailyKey()
 
@@ -95,6 +98,11 @@ function StartScreen({ onStart, onDaily, opponent, onOpponent }: StartProps): JS
             Same dice for everyone today
             {stats.dailyStreak > 0 ? ` · ${stats.dailyStreak} day streak` : ''}
           </span>
+        </button>
+
+        <button type="button" className="variant variant--online" onClick={onOnline}>
+          <strong>Play Online</strong>
+          <span>Each player on their own device</span>
         </button>
 
         {(Object.keys(RULE_SETS) as VariantId[]).map((id) => (
@@ -200,10 +208,12 @@ function RollBar(): JSX.Element | null {
   const roll = useGameStore((s) => s.roll)
   const rolling = useGameStore((s) => s.rolling)
   const aiThinking = useGameStore((s) => s.aiThinking)
+  const match = useGameStore((s) => s.match)
   if (!view) return null
 
   const isAi = view.player.isAI
-  const canRoll = view.rollsLeft > 0 && !rolling && !aiThinking && !isAi
+  const theirTurn = match !== null && !match.myTurn
+  const canRoll = view.rollsLeft > 0 && !rolling && !aiThinking && !isAi && !theirTurn
 
   return (
     <div className="rollbar">
@@ -214,7 +224,7 @@ function RollBar(): JSX.Element | null {
         onClick={() => void roll()}
       >
         <span className="rollbutton__label">
-          {rolling ? 'Rolling' : isAi ? `${view.player.name}…` : 'Roll'}
+          {rolling ? 'Rolling' : isAi || theirTurn ? `${view.player.name}…` : 'Roll'}
         </span>
         <span className="rollbutton__pips">
           {Array.from({ length: view.game.rules.rollsPerTurn }, (_, i) => (
@@ -227,7 +237,9 @@ function RollBar(): JSX.Element | null {
       <p className="hint">
         {rolling
           ? ''
-          : isAi
+          : theirTurn
+            ? `Waiting for ${view.player.name}`
+            : isAi
             ? `${view.player.name} is thinking`
             : view.game.rollsUsed === 0
             ? 'Tap Roll to start your turn'
@@ -244,7 +256,11 @@ export function App(): JSX.Element {
   const newGame = useGameStore((s) => s.newGame)
   const runAiTurn = useGameStore((s) => s.runAiTurn)
   const [started, setStarted] = useState(false)
+  const [screen, setScreen] = useState<'menu' | 'lobby'>('menu')
   const [opponent, setOpponent] = useState<AiLevel | 'solo'>('solo')
+  const onlineStatus = useOnlineStore((s) => s.status)
+  const onlineSetup = useOnlineStore((s) => s.setup)
+  const onlineActive = onlineSetup !== null && onlineStatus === 'playing'
 
   const roster = (): PlayerConfig[] => {
     const you: PlayerConfig = { id: 'p1', name: 'You' }
@@ -277,12 +293,21 @@ export function App(): JSX.Element {
     if (isAiTurn) void runAiTurn()
   }, [isAiTurn, game?.currentPlayer, game?.turnNumber, runAiTurn])
 
-  if (!started || !game) {
+  if (screen === 'lobby' && !onlineActive) {
+    return (
+      <div className="app">
+        <Lobby onBack={() => setScreen('menu')} />
+      </div>
+    )
+  }
+
+  if ((!started && !onlineActive) || !game) {
     return (
       <div className="app">
         <StartScreen
           onStart={start}
           onDaily={startDaily}
+          onOnline={() => setScreen('lobby')}
           opponent={opponent}
           onOpponent={setOpponent}
         />

@@ -88,3 +88,23 @@ The backend stores intentions, never outcomes, and never interprets the game.
 `MemoryTransport` implements the same contract in-process, which is how the
 multiplayer rules are tested end to end — turn stealing, sequence-number
 races, laggy connections and reconnects — with no network or database.
+
+### Using a different backend
+
+Exactly one file talks to Supabase. The protocol, the replay logic, the match
+client and every multiplayer test are vendor-neutral, so swapping backends
+means writing one implementation of a six-method interface.
+
+The only part that needs care is the guarantee that two devices cannot both
+claim the same move. Each candidate expresses it differently:
+
+| Backend  | First-writer-wins                                    |
+| -------- | ---------------------------------------------------- |
+| Supabase | primary key on `(match_id, seq)`                     |
+| Firestore| sequence as document id; `allow create` only         |
+| Appwrite | `createDocument` with an explicit id returns conflict |
+
+Backend clients are imported dynamically, so the SDK is a separate chunk that
+downloads only when someone opens the lobby, and is dropped entirely from the
+build when no backend is configured. A heavier SDK therefore costs the offline
+game nothing.

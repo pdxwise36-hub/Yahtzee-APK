@@ -109,6 +109,7 @@ function Cell({
 export function Scorecard(): JSX.Element | null {
   const view = useTurnView()
   const score = useGameStore((s) => s.score)
+  const match = useGameStore((s) => s.match)
   if (!view) return null
 
   const { card, preview, legal, game, activeColumn } = view
@@ -116,8 +117,10 @@ export function Scorecard(): JSX.Element | null {
   const threshold = game.rules.upperBonusThreshold
   const earned = subtotal >= threshold
   const players = game.players
-  // Only a human may tap a box; an AI's turn plays itself.
-  const interactive = !players[game.currentPlayer]?.isAI
+  // A box may only be tapped by a human, on their own turn, on their own
+  // device: an AI plays itself, and online the other seats are not yours.
+  const interactive =
+    !players[game.currentPlayer]?.isAI && (match === null || match.myTurn)
 
   // Both halves of the card are laid out as one grid of equal rows, so the
   // upper and lower sections line up exactly and the striping can run
