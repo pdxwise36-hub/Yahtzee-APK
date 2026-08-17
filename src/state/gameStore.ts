@@ -3,6 +3,7 @@ import {
   createGame,
   currentPlayer,
   diceValues,
+  jokerState,
   legalCategories,
   previewScores,
   rollDice,
@@ -29,6 +30,9 @@ export interface GameStore {
   rolling: boolean
   /** Set when the roll that just landed was a Yahtzee, for the celebration. */
   celebrating: boolean
+  /** True when that Yahtzee also earns the 100-point bonus, so the
+   *  celebration can say so at the moment it happens. */
+  celebratingBonus: boolean
   activeColumn: number
   table: DiceTable | null
   /** Set when the current game is the daily challenge, as YYYY-MM-DD. */
@@ -62,6 +66,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
   game: null,
   rolling: false,
   celebrating: false,
+  celebratingBonus: false,
   activeColumn: 0,
   table: null,
   dailyKey: null,
@@ -122,6 +127,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       game: next,
       rolling: false,
       celebrating: next.lastRollWasYahtzee,
+      celebratingBonus: earnsBonusFor(next),
     })
   },
 
@@ -183,7 +189,11 @@ export const useGameStore = create<GameStore>((set, get) => ({
       next.currentPlayer === prev.currentPlayer
 
     if (!rolled || !table) {
-      set({ game: next, celebrating: next.lastRollWasYahtzee })
+      set({
+        game: next,
+        celebrating: next.lastRollWasYahtzee,
+        celebratingBonus: earnsBonusFor(next),
+      })
       table?.setHeld(next.dice.map((d) => d.held))
       if (!rolled) table?.showValues(diceValues(next))
       return
@@ -198,11 +208,16 @@ export const useGameStore = create<GameStore>((set, get) => ({
     set({ rolling: true })
     await table.playRoll(generateRoll(movedValues, next.rngState), movedIndices)
     table.setHeld(next.dice.map((d) => d.held))
-    set({ game: next, rolling: false, celebrating: next.lastRollWasYahtzee })
+    set({
+      game: next,
+      rolling: false,
+      celebrating: next.lastRollWasYahtzee,
+      celebratingBonus: earnsBonusFor(next),
+    })
   },
 
   setActiveColumn: (column) => set({ activeColumn: column }),
-  dismissCelebration: () => set({ celebrating: false }),
+  dismissCelebration: () => set({ celebrating: false, celebratingBonus: false }),
 
   runAiTurn: async () => {
     const start = get().game
@@ -257,6 +272,17 @@ function delay(ms: number): Promise<void> {
 function aiPace(): number {
   const rate = DICE_SPEED_RATES[useProfileStore.getState().diceSpeed]
   return rate === 0 ? 3 : rate
+}
+
+/** Whether the hand on the table is a Yahtzee that also banks the bonus.
+ *
+ *  Known at the moment it lands rather than when it is scored, so the
+ *  celebration can announce the hundred points as they are earned. */
+function earnsBonusFor(state: GameState): boolean {
+  if (!state.lastRollWasYahtzee) return false
+  const player = state.players[state.currentPlayer]
+  if (!player) return false
+  return player.cards.some((card) => jokerState(diceValues(state), card).earnsBonus)
 }
 
 /** Fold a finished game into the player's lifetime record.

@@ -13,6 +13,8 @@ import { CategoryIcon } from './CategoryIcon'
 
 interface CellProps {
   category: CategoryId
+  /** Optional flash of gold on the tile, e.g. banked Yahtzee bonuses. */
+  badge?: string | undefined
   players: readonly PlayerState[]
   /** Which player may actually be scored into right now. */
   activePlayer: number
@@ -28,6 +30,7 @@ interface CellProps {
  *  yours on the same row rather than on a screen you have to switch to. */
 function Cell({
   category,
+  badge,
   players,
   activePlayer,
   column,
@@ -41,6 +44,7 @@ function Cell({
     <>
       <span className="tile" aria-hidden="true">
         {children}
+        {badge && <span className="tile__bonus">{badge}</span>}
       </span>
       {players.map((player, index) => {
         const filled = player.cards[column]?.[category]
@@ -81,6 +85,10 @@ export function Scorecard(): JSX.Element | null {
   if (!view) return null
 
   const { card, preview, legal, game, activeColumn } = view
+  // Extra Yahtzees are worth a hundred each and used to be banked silently:
+  // the total moved and nothing on the board said why.
+  const yahtzeeBonus =
+    (view.player.yahtzeeBonuses[activeColumn] ?? 0) * game.rules.yahtzeeBonusValue
   const subtotal = upperSubtotal(card)
   const threshold = game.rules.upperBonusThreshold
   const earned = subtotal >= threshold
@@ -150,6 +158,7 @@ export function Scorecard(): JSX.Element | null {
                 category={lower}
                 preview={preview[lower]}
                 legal={legal.has(lower)}
+                badge={lower === 'yahtzee' && yahtzeeBonus > 0 ? `+${yahtzeeBonus}` : undefined}
               >
                 <CategoryIcon category={lower} />
               </Cell>

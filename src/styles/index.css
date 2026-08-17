@@ -1125,3 +1125,39 @@ body {
 .column-tab:disabled {
   cursor: default;
 }
+
+/* ---------- Yahtzee bonus ---------- */
+
+/* Sits on the Yahtzee tile once extra Yahtzees have been banked, so the
+   hundreds they are worth are visible on the board rather than only inside
+   the total. */
+.tile__bonus {
+  position: absolute;
+  right: -8px;
+  bottom: -7px;
+  padding: 1px 5px;
+  font-size: 0.58rem;
+  font-weight: 900;
+  line-height: 1.25;
+  color: #4a3405;
+  background: linear-gradient(180deg, #ffe796, var(--gold));
+  border: 1.5px solid #fff;
+  border-radius: 999px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.45);
+}
+
+.celebration__stack {
+  display: grid;
+  justify-items: center;
+  gap: 2px;
+}
+
+.celebration__bonus {
+  font-size: clamp(1.1rem, 6vw, 1.9rem);
+  font-weight: 900;
+  letter-spacing: 0.1em;
+  color: #fff;
+  text-shadow: 0 2px 0 #b8471f, 0 8px 24px rgba(0, 0, 0, 0.6);
+  animation: yahtzee-pop 700ms cubic-bezier(0.18, 1.5, 0.4, 1) 140ms both,
+    yahtzee-out 500ms ease 2100ms both;
+}

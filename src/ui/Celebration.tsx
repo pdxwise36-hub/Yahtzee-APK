@@ -8,6 +8,7 @@ const COLORS = ['#ffd85e', '#ff7a59', '#5ee0ff', '#9dff5e', '#ff5ec4']
  *  the player mid-turn, and stays out of the way of the scorecard beneath. */
 export function Celebration(): JSX.Element | null {
   const celebrating = useGameStore((s) => s.celebrating)
+  const bonus = useGameStore((s) => s.celebratingBonus)
   const dismiss = useGameStore((s) => s.dismissCelebration)
 
   const confetti = useMemo(
@@ -53,7 +54,10 @@ export function Celebration(): JSX.Element | null {
           />
         ))}
       </div>
-      <div className="celebration__word">YAHTZEE!</div>
+      <div className="celebration__stack">
+        <div className="celebration__word">YAHTZEE!</div>
+        {bonus && <div className="celebration__bonus">+100 BONUS</div>}
+      </div>
     </div>
   )
 }
