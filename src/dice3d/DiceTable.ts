@@ -90,6 +90,14 @@ export class DiceTable {
   private skin: DiceSkin
   private dice: DieView[] = []
 
+  /** 0 frames the whole throwing area, 1 frames just the settled row.
+   *  The camera rides between them so the tumble stays in shot and the
+   *  result is still big enough to read on a phone. */
+  private cameraBlend = 1
+  private cameraTarget = 1
+  private wideDistance = 15
+  private closeDistance = 10
+
   private quality: TableQuality
   private running = true
   private needsRender = true
@@ -103,7 +111,7 @@ export class DiceTable {
     indices: number[]
     elapsed: number
     phase: 'tumble' | 'pause' | 'arrange'
-    from: { position: THREE.Vector3; quaternion: THREE.Quaternion }[]
+    from: { position: THREE.Vector3; quaternion: THREE.Quaternion; target: THREE.Quaternion }[]
   } | null = null
 
   private readonly onDieTap: ((index: number) => void) | undefined
@@ -218,6 +226,8 @@ export class DiceTable {
       this.dice.push({ mesh, ring, held: false, heldAmount: 0, slot: this.dice.length })
     }
     this.layoutSlots()
+    this.computeFraming()
+    this.applyCamera()
     this.needsRender = true
   }
 
@@ -361,11 +371,17 @@ export class DiceTable {
     if (animation.phase === 'pause') {
       if (animation.elapsed >= SETTLE_PAUSE_MS) {
         // Capture where the tumble left each die, then glide into the row.
-        animation.from = animation.indices.map((dieIndex) => {
+        animation.from = animation.indices.map((dieIndex, i) => {
           const view = this.dice[dieIndex] as DieView
+          const quaternion = view.mesh.quaternion.clone()
+          const value = animation.roll.dice[i]?.value ?? 1
           return {
             position: view.mesh.position.clone(),
-            quaternion: view.mesh.quaternion.clone(),
+            quaternion,
+            // Physics leaves dice resting up to a few degrees off square. Easing
+            // to an exactly flat orientation showing the same value cleans that
+            // up as part of the settle, so the hand never looks strewn about.
+            target: settleOrientation(quaternion, value),
           }
         })
         animation.phase = 'arrange'
@@ -385,7 +401,7 @@ export class DiceTable {
       // A small hop as they slide home reads as weight rather than a slide.
       view.mesh.position.y = THREE.MathUtils.lerp(start.position.y, DIE_SIZE / 2, eased)
         + Math.sin(Math.PI * t) * 0.28
-      view.mesh.quaternion.slerpQuaternions(start.quaternion, squareUp(start.quaternion), eased)
+      view.mesh.quaternion.slerpQuaternions(start.quaternion, start.target, eased)
     })
 
     if (t >= 1) {
@@ -393,6 +409,26 @@ export class DiceTable {
       this.rollResolve?.()
       this.rollResolve = null
     }
+  }
+
+  private updateCamera(deltaMs: number): void {
+    // Pull out for the throw, ease back in once the dice are lining up.
+    this.cameraTarget = this.animation && this.animation.phase === 'tumble' ? 0 : 1
+    if (Math.abs(this.cameraBlend - this.cameraTarget) < 0.0015) {
+      if (this.cameraBlend !== this.cameraTarget) {
+        this.cameraBlend = this.cameraTarget
+        this.applyCamera()
+        this.needsRender = true
+      }
+      return
+    }
+    // A dolly out should be quicker than the dolly in, so the camera is already
+    // wide by the time the dice arrive rather than chasing them across.
+    const speed = this.cameraTarget === 0 ? deltaMs / 220 : deltaMs / 620
+    this.cameraBlend += Math.sign(this.cameraTarget - this.cameraBlend)
+      * Math.min(speed, Math.abs(this.cameraTarget - this.cameraBlend))
+    this.applyCamera()
+    this.needsRender = true
   }
 
   private updateHeldVisuals(deltaMs: number): void {
@@ -419,6 +455,31 @@ export class DiceTable {
     }
   }
 
+  /** Distance at which a span of `width` world units fills the viewport,
+   *  accounting for the table being viewed at a slant rather than head-on. */
+  private distanceFor(width: number): number {
+    const vFov = (this.camera.fov * Math.PI) / 180
+    const hFov = 2 * Math.atan(Math.tan(vFov / 2) * this.camera.aspect)
+    return width / 2 / Math.tan(hFov / 2)
+  }
+
+  private computeFraming(): void {
+    const rowWidth = ROW_SPACING * Math.max(2, this.dice.length) + 1.5
+    this.wideDistance = Math.max(12, this.distanceFor(DEFAULT_TRAY.width + 1) + 1.5)
+    this.closeDistance = Math.max(6.4, this.distanceFor(rowWidth) + 1.4)
+  }
+
+  private applyCamera(): void {
+    const distance = THREE.MathUtils.lerp(this.wideDistance, this.closeDistance, this.cameraBlend)
+    // The close framing also drops nearer to table level, so settled dice are
+    // seen more from the side and their faces read larger.
+    const height = THREE.MathUtils.lerp(0.82, 0.66, this.cameraBlend)
+    const back = THREE.MathUtils.lerp(0.58, 0.76, this.cameraBlend)
+    const lookZ = THREE.MathUtils.lerp(0, ROW_Z * 0.8, this.cameraBlend)
+    this.camera.position.set(0, distance * height, distance * back)
+    this.camera.lookAt(0, 0, lookZ)
+  }
+
   private resize(): void {
     const width = this.container.clientWidth
     const height = this.container.clientHeight
@@ -427,15 +488,8 @@ export class DiceTable {
     this.renderer.setSize(width, height, false)
     this.camera.aspect = width / height
     this.camera.updateProjectionMatrix()
-
-    // Pull the camera back until the whole dice row is comfortably in frame on
-    // narrow phone screens as well as wide ones.
-    const needed = ROW_SPACING * Math.max(5, this.dice.length) + 2.2
-    const vFov = (this.camera.fov * Math.PI) / 180
-    const hFov = 2 * Math.atan(Math.tan(vFov / 2) * this.camera.aspect)
-    const distance = Math.max(11.2, needed / 2 / Math.tan(hFov / 2) + 3.4)
-    this.camera.position.set(0, distance * 0.79, distance * 0.62)
-    this.camera.lookAt(0, 0, 0.4)
+    this.computeFraming()
+    this.applyCamera()
     this.needsRender = true
   }
 
@@ -449,6 +503,7 @@ export class DiceTable {
       this.advanceAnimation(delta)
       this.needsRender = true
     }
+    this.updateCamera(delta)
     this.updateHeldVisuals(delta)
 
     if (this.needsRender) {
@@ -506,6 +561,26 @@ export function squareUp(quaternion: THREE.Quaternion): THREE.Quaternion {
   // needed to move `angle` onto `snapped` is their difference negated.
   const correction = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), angle - snapped)
   return correction.multiply(quaternion)
+}
+
+/** The perfectly flat orientation showing `value` that is closest to where the
+ *  die currently lies, so righting it is the shortest possible turn. */
+export function settleOrientation(current: THREE.Quaternion, value: DieValue): THREE.Quaternion {
+  const base = restingOrientation(value)
+  let best = base
+  let bestDot = -Infinity
+  for (let quarter = 0; quarter < 4; quarter++) {
+    const candidate = new THREE.Quaternion()
+      .setFromAxisAngle(new THREE.Vector3(0, 1, 0), (quarter * Math.PI) / 2)
+      .multiply(base)
+    // Quaternions double-cover rotations, so compare absolute dot products.
+    const dot = Math.abs(candidate.dot(current))
+    if (dot > bestDot) {
+      bestDot = dot
+      best = candidate
+    }
+  }
+  return best
 }
 
 /** A canonical flat orientation showing the given value. */

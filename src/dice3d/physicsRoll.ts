@@ -121,16 +121,18 @@ function createDiceBodies(count: number, world: CANNON.World, seed: number): CAN
     // Launch from just off the left edge in a loose stack, thrown to the right
     // and downward — the arc a hand makes tipping a cup onto the table.
     body.position.set(
-      -DEFAULT_TRAY.width / 2 - 1.2 - i * 0.55,
+      -DEFAULT_TRAY.width / 2 - 0.6 - i * 0.5,
       2.6 + rng.next() * 1.8,
-      (rng.next() - 0.5) * (DEFAULT_TRAY.depth * 0.45),
+      (rng.next() - 0.5) * (DEFAULT_TRAY.depth * 0.6),
     )
     body.quaternion.setFromEuler(
       rng.next() * Math.PI * 2,
       rng.next() * Math.PI * 2,
       rng.next() * Math.PI * 2,
     )
-    body.velocity.set(10 + rng.next() * 5, 1.2 + rng.next() * 2, (rng.next() - 0.5) * 5.5)
+    // Enough push to cross the table and tumble, but not so much that the dice
+    // pile against the far wall and leave most of the felt empty.
+    body.velocity.set(5.5 + rng.next() * 3.2, 1.2 + rng.next() * 2, (rng.next() - 0.5) * 4.5)
     body.angularVelocity.set(
       (rng.next() - 0.5) * 22,
       (rng.next() - 0.5) * 22,
