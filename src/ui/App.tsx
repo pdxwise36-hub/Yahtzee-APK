@@ -9,9 +9,7 @@ import { Celebration } from './Celebration'
 function StartScreen({ onStart }: { onStart: (variant: VariantId) => void }): JSX.Element {
   return (
     <div className="screen screen--start">
-      <h1 className="title">
-        <span>YAHTZEE</span>
-      </h1>
+      <h1 className="title">YAHTZEE</h1>
       <p className="subtitle">Roll five dice. Press your luck.</p>
       <div className="variant-list">
         {(Object.keys(RULE_SETS) as VariantId[]).map((id) => (
@@ -56,47 +54,65 @@ function GameOver(): JSX.Element | null {
   )
 }
 
-function TurnBar(): JSX.Element | null {
+function TopBar(): JSX.Element | null {
   const view = useTurnView()
   if (!view) return null
-  const total = grandTotal(view.player, view.game.rules)
 
   return (
-    <header className="turn-bar">
-      <div className="turn-bar__player">
-        <span className="turn-bar__name">{view.player.name}</span>
-        <span className="turn-bar__turn">
-          Turn {view.game.turnNumber + 1} / {13 * view.game.rules.columns}
-        </span>
+    <header className="topbar">
+      {view.game.players.map((player, i) => (
+        <div
+          key={player.id}
+          className={`player ${i === view.game.currentPlayer ? 'is-active' : ''}`}
+        >
+          <span className="player__name">{player.name}</span>
+          <span className="player__score">{grandTotal(player, view.game.rules)}</span>
+        </div>
+      ))}
+      <div className="topbar__turn">
+        {view.game.turnNumber + 1}/{13 * view.game.rules.columns}
       </div>
-      <div className="turn-bar__score">{total}</div>
     </header>
   )
 }
 
-function Controls(): JSX.Element | null {
+/** The dice strip along the bottom of the board. The slots sit behind the 3D
+ *  canvas, so an empty tray still reads as five places waiting for dice. */
+function Tray(): JSX.Element | null {
+  const view = useTurnView()
+  if (!view) return null
+
+  return (
+    <div className="tray">
+      <DiceArea />
+    </div>
+  )
+}
+
+function RollBar(): JSX.Element | null {
   const view = useTurnView()
   const roll = useGameStore((s) => s.roll)
   const rolling = useGameStore((s) => s.rolling)
   if (!view) return null
 
   const canRoll = view.rollsLeft > 0 && !rolling
-  const label = view.game.rollsUsed === 0 ? 'Roll' : `Roll again`
 
   return (
-    <div className="controls">
-      <div className="rolls" aria-label={`${view.rollsLeft} rolls left`}>
-        {Array.from({ length: view.game.rules.rollsPerTurn }, (_, i) => (
-          <span key={i} className={`pip ${i < view.rollsLeft ? 'is-left' : ''}`} />
-        ))}
-      </div>
+    <div className="rollbar">
       <button
         type="button"
-        className="button button--primary button--roll"
+        className="rollbutton"
         disabled={!canRoll}
         onClick={() => void roll()}
       >
-        {rolling ? 'Rolling…' : label}
+        <span className="rollbutton__label">{rolling ? 'Rolling' : 'Roll'}</span>
+        <span className="rollbutton__pips">
+          {Array.from({ length: view.game.rules.rollsPerTurn }, (_, i) => (
+            <span key={i} className={`rollpip ${i < view.game.rollsUsed ? 'is-spent' : ''}`}>
+              {i + 1}
+            </span>
+          ))}
+        </span>
       </button>
       <p className="hint">
         {rolling
@@ -121,26 +137,15 @@ export function App(): JSX.Element {
     setStarted(true)
   }
 
+  if (!started || !game) return <div className="app"><StartScreen onStart={start} /></div>
+  if (game.phase === 'gameOver') return <div className="app"><GameOver /></div>
+
   return (
     <div className="app">
-      {/* The table is mounted for the whole session so the WebGL context and
-          its textures survive navigation between screens. */}
-      <div className={`table-layer ${started && game ? 'is-active' : ''}`}>
-        <DiceArea />
-      </div>
-
-      {!started || !game ? (
-        <StartScreen onStart={start} />
-      ) : game.phase === 'gameOver' ? (
-        <GameOver />
-      ) : (
-        <div className="screen screen--game">
-          <TurnBar />
-          <div className="table-spacer" />
-          <Controls />
-          <Scorecard />
-        </div>
-      )}
+      <TopBar />
+      <Scorecard />
+      <Tray />
+      <RollBar />
       <Celebration />
     </div>
   )

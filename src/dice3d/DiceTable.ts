@@ -14,14 +14,13 @@ export type TableQuality = 'high' | 'low'
 export interface DiceTableOptions {
   container: HTMLElement
   skinId?: string
-  feltColor?: string
   quality?: TableQuality
   /** Fired when the player taps a die. Ignored while dice are in motion. */
   onDieTap?: (index: number) => void
 }
 
 /** Where dice come to rest so the hand is easy to read and easy to tap. */
-const ROW_Z = 1.35
+const ROW_Z = 0.15
 const ROW_SPACING = DIE_SIZE * 1.34
 const HELD_LIFT = 0.34
 const ARRANGE_MS = 460
@@ -40,41 +39,6 @@ interface DieView {
   /** Ring opacity and lift are eased rather than snapped. */
   heldAmount: number
   slot: number
-}
-
-/** Procedural felt: flat colour, fine noise so it does not read as plastic,
- *  and a vignette that pulls focus to the middle of the table. */
-function createFeltTexture(color: string, size = 512): THREE.CanvasTexture {
-  const canvas = document.createElement('canvas')
-  canvas.width = size
-  canvas.height = size
-  const ctx = canvas.getContext('2d') as CanvasRenderingContext2D
-
-  ctx.fillStyle = color
-  ctx.fillRect(0, 0, size, size)
-
-  const image = ctx.getImageData(0, 0, size, size)
-  const data = image.data
-  for (let i = 0; i < data.length; i += 4) {
-    const noise = (Math.random() - 0.5) * 26
-    data[i] = Math.max(0, Math.min(255, (data[i] as number) + noise))
-    data[i + 1] = Math.max(0, Math.min(255, (data[i + 1] as number) + noise))
-    data[i + 2] = Math.max(0, Math.min(255, (data[i + 2] as number) + noise))
-  }
-  ctx.putImageData(image, 0, 0)
-
-  const vignette = ctx.createRadialGradient(
-    size / 2, size / 2, size * 0.18,
-    size / 2, size / 2, size * 0.62,
-  )
-  vignette.addColorStop(0, 'rgba(255,255,255,0.06)')
-  vignette.addColorStop(1, 'rgba(0,0,0,0.42)')
-  ctx.fillStyle = vignette
-  ctx.fillRect(0, 0, size, size)
-
-  const texture = new THREE.CanvasTexture(canvas)
-  texture.colorSpace = THREE.SRGBColorSpace
-  return texture
 }
 
 export class DiceTable {
@@ -144,7 +108,7 @@ export class DiceTable {
     this.camera.position.set(0, 12.4, 9.6)
     this.camera.lookAt(0, 0, 0.4)
 
-    this.buildTable(options.feltColor ?? '#1d6b45')
+    this.buildTable()
     this.buildLights()
 
     this.geometry = createRoundedDieGeometry(DIE_SIZE, DIE_SIZE * 0.13, this.quality === 'high' ? 5 : 3)
@@ -158,22 +122,21 @@ export class DiceTable {
     this.loop(0)
   }
 
-  private buildTable(feltColor: string): void {
-    const felt = new THREE.Mesh(
-      new THREE.PlaneGeometry(DEFAULT_TRAY.width + 8, DEFAULT_TRAY.depth + 8),
-      new THREE.MeshStandardMaterial({
-        map: createFeltTexture(feltColor),
-        roughness: 0.96,
-        metalness: 0,
-      }),
+  private buildTable(): void {
+    // The floor is invisible and catches shadows only, so the dice appear to
+    // sit directly on the tray drawn by the page beneath the canvas. Painting
+    // a surface here instead would fight the app's own colours.
+    const floor = new THREE.Mesh(
+      new THREE.PlaneGeometry(DEFAULT_TRAY.width + 12, DEFAULT_TRAY.depth + 12),
+      new THREE.ShadowMaterial({ opacity: 0.34 }),
     )
-    felt.rotation.x = -Math.PI / 2
-    felt.receiveShadow = true
-    this.scene.add(felt)
+    floor.rotation.x = -Math.PI / 2
+    floor.receiveShadow = true
+    this.scene.add(floor)
   }
 
   private buildLights(): void {
-    this.scene.add(new THREE.HemisphereLight(0xdfeaff, 0x14301f, 0.85))
+    this.scene.add(new THREE.HemisphereLight(0xe8f2ff, 0x0d2b40, 0.9))
 
     const key = new THREE.DirectionalLight(0xfff4e2, 2.1)
     key.position.set(-5.5, 13, 7)
@@ -464,20 +427,23 @@ export class DiceTable {
   }
 
   private computeFraming(): void {
-    const rowWidth = ROW_SPACING * Math.max(2, this.dice.length) + 1.5
-    this.wideDistance = Math.max(12, this.distanceFor(DEFAULT_TRAY.width + 1) + 1.5)
-    this.closeDistance = Math.max(6.4, this.distanceFor(rowWidth) + 1.4)
+    const rowWidth = ROW_SPACING * Math.max(2, this.dice.length) + 0.35
+    this.wideDistance = Math.max(8, this.distanceFor(DEFAULT_TRAY.width + 0.5))
+    this.closeDistance = Math.max(5, this.distanceFor(rowWidth))
   }
 
   private applyCamera(): void {
     const distance = THREE.MathUtils.lerp(this.wideDistance, this.closeDistance, this.cameraBlend)
-    // The close framing also drops nearer to table level, so settled dice are
-    // seen more from the side and their faces read larger.
-    const height = THREE.MathUtils.lerp(0.82, 0.66, this.cameraBlend)
-    const back = THREE.MathUtils.lerp(0.58, 0.76, this.cameraBlend)
-    const lookZ = THREE.MathUtils.lerp(0, ROW_Z * 0.8, this.cameraBlend)
-    this.camera.position.set(0, distance * height, distance * back)
-    this.camera.lookAt(0, 0, lookZ)
+    // Steeply overhead, because the dice sit in a short strip: a low, sideways
+    // view would need far more vertical room than the strip has. Easing a
+    // little flatter as the dice settle still gives their faces some depth.
+    const elevation = THREE.MathUtils.lerp(1.30, 1.12, this.cameraBlend)
+    this.camera.position.set(
+      0,
+      distance * Math.sin(elevation),
+      distance * Math.cos(elevation) + ROW_Z,
+    )
+    this.camera.lookAt(0, 0, ROW_Z)
   }
 
   private resize(): void {

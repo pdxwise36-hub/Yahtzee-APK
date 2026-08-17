@@ -15,7 +15,9 @@ export interface TrayBounds {
   wallHeight: number
 }
 
-export const DEFAULT_TRAY: TrayBounds = { width: 11, depth: 8.5, wallHeight: 6 }
+/** The dice live in a short strip along the bottom of the board, so the tray
+ *  is wide and shallow: dice roll across it rather than around it. */
+export const DEFAULT_TRAY: TrayBounds = { width: 13, depth: 3.6, wallHeight: 5 }
 
 const FIXED_STEP = 1 / 60
 const MAX_STEPS = 190
@@ -122,21 +124,21 @@ function createDiceBodies(count: number, world: CANNON.World, seed: number): CAN
     // and downward — the arc a hand makes tipping a cup onto the table.
     body.position.set(
       -DEFAULT_TRAY.width / 2 - 0.6 - i * 0.5,
-      2.6 + rng.next() * 1.8,
-      (rng.next() - 0.5) * (DEFAULT_TRAY.depth * 0.6),
+      1.5 + rng.next() * 1.1,
+      (rng.next() - 0.5) * (DEFAULT_TRAY.depth * 0.42),
     )
     body.quaternion.setFromEuler(
       rng.next() * Math.PI * 2,
       rng.next() * Math.PI * 2,
       rng.next() * Math.PI * 2,
     )
-    // Enough push to cross the table and tumble, but not so much that the dice
-    // pile against the far wall and leave most of the felt empty.
-    body.velocity.set(5.5 + rng.next() * 3.2, 1.2 + rng.next() * 2, (rng.next() - 0.5) * 4.5)
+    // Thrown along the strip rather than into it: plenty of sideways travel to
+    // tumble with, but little depth, so no die ever leaves the shallow tray.
+    body.velocity.set(6.5 + rng.next() * 3.4, 0.9 + rng.next() * 1.4, (rng.next() - 0.5) * 1.6)
     body.angularVelocity.set(
-      (rng.next() - 0.5) * 22,
-      (rng.next() - 0.5) * 22,
-      (rng.next() - 0.5) * 22,
+      (rng.next() - 0.5) * 14,
+      (rng.next() - 0.5) * 18,
+      (rng.next() - 0.5) * 24,
     )
 
     world.addBody(body)

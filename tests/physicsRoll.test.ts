@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import * as THREE from 'three'
-import { generateRoll } from '@/dice3d/physicsRoll'
+import { DEFAULT_TRAY, generateRoll } from '@/dice3d/physicsRoll'
 import { valueFacingUp, faceCorrection, normalForValue, FACE_VALUES } from '@/dice3d/diceGeometry'
 import type { DieValue } from '@/engine/types'
 import { createRng } from '@/engine/rng'
@@ -83,14 +83,33 @@ describe('generateRoll', () => {
     }
   })
 
-  it('keeps the dice inside the tray for the whole throw', () => {
-    const roll = generateRoll([1, 2, 3, 4, 5], 4242)
-    for (const die of roll.dice) {
-      for (let f = 0; f < die.frameCount; f++) {
-        const o = f * 3
-        expect(Math.abs(die.positions[o] as number)).toBeLessThan(11 / 2 + 2.5)
-        expect(Math.abs(die.positions[o + 2] as number)).toBeLessThan(8.5 / 2 + 1)
-        expect(die.positions[o + 1] as number).toBeGreaterThan(-0.5)
+  it('never lets a die leave the shallow strip it is thrown along', () => {
+    // The dice tray is a short band at the bottom of the board, so depth is the
+    // tight constraint: a die that wandered out of it would be drawn outside
+    // the strip the player is looking at.
+    const rng = createRng(1234)
+    for (let trial = 0; trial < 20; trial++) {
+      const values = Array.from({ length: 5 }, () => rng.die())
+      const roll = generateRoll(values, rng.getState())
+      for (const die of roll.dice) {
+        for (let f = 0; f < die.frameCount; f++) {
+          const o = f * 3
+          expect(Math.abs(die.positions[o + 2] as number)).toBeLessThan(DEFAULT_TRAY.depth / 2 + 0.9)
+          expect(die.positions[o + 1] as number).toBeGreaterThan(-0.5)
+        }
+      }
+    }
+  })
+
+  it('comes to rest inside the tray', () => {
+    const rng = createRng(99)
+    for (let trial = 0; trial < 20; trial++) {
+      const values = Array.from({ length: 5 }, () => rng.die())
+      const roll = generateRoll(values, rng.getState())
+      for (const die of roll.dice) {
+        const o = (die.frameCount - 1) * 3
+        expect(Math.abs(die.positions[o] as number)).toBeLessThan(DEFAULT_TRAY.width / 2 + 0.6)
+        expect(Math.abs(die.positions[o + 2] as number)).toBeLessThan(DEFAULT_TRAY.depth / 2 + 0.6)
       }
     }
   })
