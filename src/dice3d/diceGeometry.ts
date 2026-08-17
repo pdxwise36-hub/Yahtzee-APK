@@ -1,5 +1,10 @@
 import * as THREE from 'three'
 import type { DieValue } from '@/engine/types'
+import { DICE_SKINS, type DecorSet, type DiceSkin, type PipShape } from './skins'
+
+// Re-exported so callers can keep importing dice from one place.
+export { DICE_SKINS }
+export type { DecorSet, DiceSkin, PipShape }
 
 /** Which value sits on each face of the cube, in Three.js BoxGeometry
  *  material order: +X, -X, +Y, -Y, +Z, -Z.
@@ -90,80 +95,6 @@ export function createRoundedDieGeometry(size = 1, radius = 0.12, segments = 5):
   return geometry
 }
 
-/** What a pip is drawn as. Skins were colour-only until novelty dice needed
- *  their spots to be something other than spots. */
-export type PipShape = 'dot' | 'cheeky'
-
-export interface DiceSkin {
-  id: string
-  name: string
-  body: string
-  pip: string
-  /** Subtle rim tint painted into the texture edges. */
-  edge: string
-  roughness: number
-  metalness: number
-  pipShape?: PipShape
-  /** Paints wood grain into the face, for the dice that are meant to be wood. */
-  grain?: boolean
-}
-
-export const DICE_SKINS: Record<string, DiceSkin> = {
-  ivory: {
-    id: 'ivory', name: 'Ivory', body: '#f8f4e8', pip: '#121214',
-    edge: '#d9d0ba', roughness: 0.32, metalness: 0.02,
-  },
-  midnight: {
-    id: 'midnight', name: 'Midnight', body: '#1b1f2a', pip: '#e8ecf5',
-    edge: '#0d1017', roughness: 0.28, metalness: 0.15,
-  },
-  ruby: {
-    id: 'ruby', name: 'Ruby', body: '#9b1c2e', pip: '#ffe9ec',
-    edge: '#6d1220', roughness: 0.22, metalness: 0.08,
-  },
-  gold: {
-    id: 'gold', name: 'Gold', body: '#d4a92c', pip: '#3a2a05',
-    edge: '#a37f18', roughness: 0.18, metalness: 0.75,
-  },
-  jade: {
-    id: 'jade', name: 'Jade', body: '#1f7a5e', pip: '#eafff6',
-    edge: '#12513e', roughness: 0.25, metalness: 0.1,
-  },
-  neon: {
-    id: 'neon', name: 'Neon', body: '#12121a', pip: '#39ff9e',
-    edge: '#05050a', roughness: 0.4, metalness: 0.05,
-  },
-  sapphire: {
-    id: 'sapphire', name: 'Sapphire', body: '#1d4fa8', pip: '#e2edff',
-    edge: '#123068', roughness: 0.2, metalness: 0.12,
-  },
-  coral: {
-    id: 'coral', name: 'Coral', body: '#ff6f4d', pip: '#fff2ee',
-    edge: '#b8421f', roughness: 0.3, metalness: 0.04,
-  },
-  amethyst: {
-    id: 'amethyst', name: 'Amethyst', body: '#6d40a6', pip: '#f4e8ff',
-    edge: '#42226a', roughness: 0.22, metalness: 0.14,
-  },
-  silver: {
-    id: 'silver', name: 'Silver', body: '#c9ced6', pip: '#23272e',
-    edge: '#8b9099', roughness: 0.14, metalness: 0.88,
-  },
-  bubblegum: {
-    id: 'bubblegum', name: 'Bubblegum', body: '#ff8fc4', pip: '#4d0f31',
-    edge: '#c75f92', roughness: 0.28, metalness: 0.03,
-  },
-  oak: {
-    id: 'oak', name: 'Oak', body: '#a9713c', pip: '#f7e8d2',
-    edge: '#6d4520', roughness: 0.55, metalness: 0.02,
-  },
-  cheeky: {
-    id: 'cheeky', name: 'Cheeky', body: '#e8cfa0', pip: '#2b1c0c',
-    edge: '#b8975f', roughness: 0.62, metalness: 0.01,
-    pipShape: 'cheeky', grain: true,
-  },
-}
-
 /** Blend two hex colours. Used to shade pips without hand-listing variants. */
 function mix(a: string, b: string, amount: number): string {
   const parse = (hex: string): [number, number, number] => [
@@ -177,8 +108,9 @@ function mix(a: string, b: string, amount: number): string {
   return `rgb(${channel(r1, r2)}, ${channel(g1, g2)}, ${channel(b1, b2)})`
 }
 
-/** Pip positions as fractions of the face, for each value. */
-const PIP_LAYOUT: Record<DieValue, [number, number][]> = {
+/** Pip positions as fractions of the face, for each value. Exported so the
+ *  art placement can be checked against them. */
+export const PIP_LAYOUT: Record<DieValue, [number, number][]> = {
   1: [[0.5, 0.5]],
   2: [[0.27, 0.27], [0.73, 0.73]],
   3: [[0.25, 0.25], [0.5, 0.5], [0.75, 0.75]],
@@ -210,6 +142,9 @@ function drawFace(value: DieValue, skin: DiceSkin, resolution: number): HTMLCanv
   ctx.globalAlpha = 1
 
   if (skin.grain) drawGrain(ctx, resolution, skin.edge)
+  // Art first, pips second: whatever the joke is, it never sits on top of
+  // the number.
+  if (skin.decor) drawDecor(ctx, value, skin.decor, resolution)
 
   const pipRadius = resolution * (value === 1 ? 0.125 : 0.092)
 
@@ -252,6 +187,51 @@ function drawFace(value: DieValue, skin: DiceSkin, resolution: number): HTMLCanv
   }
 
   return canvas
+}
+
+/** Where a face's art sits, and how big, as fractions of the face.
+ *
+ *  Each spot is one the standard pip layout leaves empty, so the art and the
+ *  number share a face without fighting. Four and six have nothing but a clear
+ *  channel down the middle, which is why those two carry the set's mascot at
+ *  full size with the pips crossing over it. */
+export const DECOR_LAYOUT: Record<DieValue, { x: number; y: number; size: number }> = {
+  1: { x: 0.26, y: 0.78, size: 0.32 },
+  2: { x: 0.27, y: 0.74, size: 0.34 },
+  3: { x: 0.24, y: 0.76, size: 0.32 },
+  4: { x: 0.5, y: 0.5, size: 0.36 },
+  5: { x: 0.5, y: 0.79, size: 0.28 },
+  6: { x: 0.5, y: 0.5, size: 0.46 },
+}
+
+/** The colour emoji font, which every Android WebView ships and which saves
+ *  hand-drawing sixty little illustrations. Named explicitly rather than left
+ *  to the default stack: the fallback for a missing glyph is an empty box, and
+ *  a die with a blank face is worse than no theme at all. */
+const EMOJI_FONT = '"Noto Color Emoji", "Apple Color Emoji", "Segoe UI Emoji", "Twemoji Mozilla", sans-serif'
+
+/** Paint one face's illustration into the space the pips leave free. */
+function drawDecor(
+  ctx: CanvasRenderingContext2D,
+  value: DieValue,
+  decor: DecorSet,
+  resolution: number,
+): void {
+  const glyph = decor[value - 1]
+  if (!glyph) return
+  const spot = DECOR_LAYOUT[value]
+
+  ctx.save()
+  ctx.font = `${spot.size * resolution}px ${EMOJI_FONT}`
+  ctx.textAlign = 'center'
+  ctx.textBaseline = 'middle'
+  // A soft contact shadow, so the art sits on the face rather than floating
+  // above it. Without it the flat emoji reads as a sticker.
+  ctx.shadowColor = 'rgba(0,0,0,0.28)'
+  ctx.shadowBlur = resolution * 0.02
+  ctx.shadowOffsetY = resolution * 0.008
+  ctx.fillText(glyph, spot.x * resolution, spot.y * resolution)
+  ctx.restore()
 }
 
 /** A novelty pip, drawn as a filled silhouette rather than an outline.
@@ -319,7 +299,8 @@ function drawGrain(ctx: CanvasRenderingContext2D, resolution: number, edge: stri
 /** The six face materials for a die, in BoxGeometry order. */
 export function createDieMaterials(skin: DiceSkin, resolution = 256): THREE.MeshPhysicalMaterial[] {
   // Shaped pips carry far more detail than a circle and need the extra pixels.
-  const size = skin.pipShape && skin.pipShape !== 'dot' ? resolution * 2 : resolution
+  const detailed = (skin.pipShape && skin.pipShape !== 'dot') || Boolean(skin.decor)
+  const size = detailed ? resolution * 2 : resolution
   return FACE_VALUES.map((value) => {
     const texture = new THREE.CanvasTexture(drawFace(value, skin, size))
     texture.anisotropy = 8

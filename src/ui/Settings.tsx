@@ -93,7 +93,9 @@ export function Settings({ onBack }: { onBack: () => void }): JSX.Element {
                 onClick={() => selectSkin(option.id)}
                 aria-label={unlocked ? `${option.name} dice` : `${option.name} dice, locked`}
               >
-                {unlocked ? '⬤' : '🔒'}
+                {/* A themed set shows its mascot: two dozen dice all drawn as
+                    the same dot would be impossible to tell apart. */}
+                {unlocked ? (option.decor ? option.decor[5] : '⬤') : '🔒'}
               </button>
             )
           })}

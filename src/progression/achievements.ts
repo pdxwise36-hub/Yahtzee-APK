@@ -1,3 +1,4 @@
+import { DICE_SKINS } from '@/dice3d/skins'
 import type { CategoryId, VariantId } from '@/engine/types'
 
 /** Lifetime record for one player, persisted between sessions. */
@@ -179,16 +180,22 @@ export function unlockedAchievements(stats: Stats): Achievement[] {
  *  still shown, so turning this back on restores the ladder intact. */
 export const REWARDS_GATE_CONTENT = false
 
-/** Dice skins the player may choose from. */
+/** Dice skins the player may choose from.
+ *
+ *  A skin has to be earned only if some achievement names it as its reward.
+ *  The themed sets deliberately name none, so adding a novelty set never means
+ *  inventing an achievement to hang it on. */
 export function unlockedSkins(stats: Stats): string[] {
-  if (!REWARDS_GATE_CONTENT) {
-    return ['ivory', ...ACHIEVEMENTS.flatMap((a) => (a.reward.kind === 'diceSkin' ? [a.reward.id] : []))]
-  }
-  const skins = ['ivory']
-  for (const achievement of unlockedAchievements(stats)) {
-    if (achievement.reward.kind === 'diceSkin') skins.push(achievement.reward.id)
-  }
-  return skins
+  const catalogue = Object.keys(DICE_SKINS)
+  if (!REWARDS_GATE_CONTENT) return catalogue
+
+  const rewarded = new Set(
+    ACHIEVEMENTS.flatMap((a) => (a.reward.kind === 'diceSkin' ? [a.reward.id] : [])),
+  )
+  const earned = new Set(
+    unlockedAchievements(stats).flatMap((a) => (a.reward.kind === 'diceSkin' ? [a.reward.id] : [])),
+  )
+  return catalogue.filter((id) => !rewarded.has(id) || earned.has(id))
 }
 
 /** The day before `key`, used to decide whether a daily streak continues. */

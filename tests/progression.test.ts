@@ -133,27 +133,32 @@ describe('achievements and rewards', () => {
       upperBonuses: 99, bestDailyStreak: 99,
       variantsPlayed: ['standard', 'triple', 'sixDice'],
     }
-    expect(unlockedSkins(maxed).sort()).toEqual([
-      'amethyst', 'bubblegum', 'cheeky', 'coral', 'gold', 'ivory', 'jade',
-      'midnight', 'neon', 'oak', 'ruby', 'sapphire', 'silver',
-    ].sort())
+    // Every achievement is satisfied here, so a maxed player sees the whole
+    // catalogue whether gating is on or off.
+    expect(unlockedSkins(maxed).sort()).toEqual(Object.keys(DICE_SKINS).sort())
   })
 })
 
 describe('reward coverage', () => {
-  it('makes every dice skin earnable, and only through one achievement', () => {
-    // A skin nobody can unlock is dead content; two achievements granting the
-    // same skin makes one of them feel like it did nothing.
+  it('points every reward at a real skin, and leaves no skin unreachable', () => {
     const rewarded = ACHIEVEMENTS
       .filter((a) => a.reward.kind === 'diceSkin')
       .map((a) => a.reward.id)
+    // Two achievements granting the same skin makes one of them feel like it
+    // did nothing.
     expect(new Set(rewarded).size).toBe(rewarded.length)
 
     const skinIds = Object.keys(DICE_SKINS)
-    const earnable = new Set([...rewarded, 'ivory'])
-    for (const id of skinIds) {
-      expect(earnable.has(id)).toBe(true)
-    }
+    // A reward naming a skin that does not exist would award nothing at all,
+    // silently.
     expect(rewarded.every((id) => skinIds.includes(id))).toBe(true)
+
+    // The themed sets are not rewards, they are simply available. Whatever the
+    // gating setting, a skin no achievement names must be selectable from the
+    // first game — otherwise it is content nobody can ever reach.
+    const day1 = new Set(unlockedSkins(EMPTY_STATS))
+    for (const id of skinIds.filter((id) => !rewarded.includes(id))) {
+      expect(day1.has(id)).toBe(true)
+    }
   })
 })
