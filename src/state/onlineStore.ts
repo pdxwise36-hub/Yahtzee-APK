@@ -175,6 +175,29 @@ async function attach(
   useGameStore.getState().setMatch(client)
 }
 
+/** Backend failures arrive as opaque codes like `auth/network-request-failed`,
+ *  which tell a player nothing. These are the ones worth recognising, phrased
+ *  so the person seeing them knows what to do. The raw code is kept on the end
+ *  so an unexpected failure can still be reported precisely. */
+const FRIENDLY_ERRORS: [RegExp, string][] = [
+  [/auth\/network-request-failed|unavailable|failed to fetch/i,
+    'Could not reach the server. Check your connection and try again.'],
+  [/operation-not-allowed|admin-restricted-operation/i,
+    'Anonymous sign-in is not enabled for this project yet.'],
+  [/permission-denied|insufficient permissions/i,
+    'The server refused that. The security rules may not be published yet.'],
+  [/no match with that code/i, 'No game found with that code.'],
+  [/already started/i, 'That game has already started.'],
+  [/quota|resource-exhausted/i, 'The server is over its usage limit for today.'],
+]
+
 function messageOf(error: unknown): string {
-  return error instanceof Error ? error.message : String(error)
+  const raw = error instanceof Error ? error.message : String(error)
+  for (const [pattern, friendly] of FRIENDLY_ERRORS) {
+    if (pattern.test(raw)) {
+      const code = raw.match(/\(([^)]+)\)/)?.[1]
+      return code ? `${friendly} (${code})` : friendly
+    }
+  }
+  return raw
 }
