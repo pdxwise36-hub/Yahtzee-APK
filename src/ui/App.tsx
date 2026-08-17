@@ -1,17 +1,73 @@
 import { useState } from 'react'
 import { RULE_SETS, type VariantId } from '@/engine/types'
 import { grandTotal } from '@/engine/game'
+import { dailyKey, dailySeed } from '@/engine/rng'
+import { DICE_SKINS } from '@/dice3d/diceGeometry'
+import { unlockedSkins, averageScore } from '@/progression/achievements'
 import { useGameStore, useTurnView } from '@/state/gameStore'
+import { useProfileStore } from '@/state/profileStore'
 import { DiceArea } from './DiceArea'
 import { Scorecard } from './Scorecard'
 import { Celebration } from './Celebration'
+import { Rewards } from './Rewards'
 
-function StartScreen({ onStart }: { onStart: (variant: VariantId) => void }): JSX.Element {
+function SkinPicker(): JSX.Element {
+  const stats = useProfileStore((s) => s.stats)
+  const selected = useProfileStore((s) => s.selectedSkin)
+  const select = useProfileStore((s) => s.selectSkin)
+  const unlocked = new Set(unlockedSkins(stats))
+
+  return (
+    <div className="skins" aria-label="Dice">
+      {Object.values(DICE_SKINS).map((skin) => {
+        const owned = unlocked.has(skin.id)
+        return (
+          <button
+            key={skin.id}
+            type="button"
+            className={`skin ${selected === skin.id ? 'is-selected' : ''} ${owned ? '' : 'is-locked'}`}
+            style={{ background: skin.body, color: skin.pip }}
+            disabled={!owned}
+            onClick={() => select(skin.id)}
+            aria-label={owned ? skin.name : `${skin.name}, locked`}
+            title={owned ? skin.name : 'Locked'}
+          >
+            {owned ? '⬤' : '🔒'}
+          </button>
+        )
+      })}
+    </div>
+  )
+}
+
+interface StartProps {
+  onStart: (variant: VariantId) => void
+  onDaily: () => void
+}
+
+function StartScreen({ onStart, onDaily }: StartProps): JSX.Element {
+  const stats = useProfileStore((s) => s.stats)
+  const todayDone = stats.lastDailyKey === dailyKey()
+
   return (
     <div className="screen screen--start">
       <h1 className="title">YAHTZEE</h1>
-      <p className="subtitle">Roll five dice. Press your luck.</p>
+
+      {stats.gamesPlayed > 0 && (
+        <p className="statline">
+          Best {stats.bestScore} · Average {averageScore(stats)} · {stats.gamesPlayed} games
+        </p>
+      )}
+
       <div className="variant-list">
+        <button type="button" className="variant variant--daily" onClick={onDaily}>
+          <strong>Daily Challenge {todayDone ? '✓' : ''}</strong>
+          <span>
+            Same dice for everyone today
+            {stats.dailyStreak > 0 ? ` · ${stats.dailyStreak} day streak` : ''}
+          </span>
+        </button>
+
         {(Object.keys(RULE_SETS) as VariantId[]).map((id) => (
           <button key={id} type="button" className="variant" onClick={() => onStart(id)}>
             <strong>{RULE_SETS[id].name}</strong>
@@ -22,6 +78,8 @@ function StartScreen({ onStart }: { onStart: (variant: VariantId) => void }): JS
           </button>
         ))}
       </div>
+
+      <SkinPicker />
     </div>
   )
 }
@@ -137,8 +195,28 @@ export function App(): JSX.Element {
     setStarted(true)
   }
 
-  if (!started || !game) return <div className="app"><StartScreen onStart={start} /></div>
-  if (game.phase === 'gameOver') return <div className="app"><GameOver /></div>
+  // Every player gets the same dice today, because the seed is the date.
+  const startDaily = (): void => {
+    newGame('standard', [{ id: 'p1', name: 'You' }], dailySeed(), dailyKey())
+    setStarted(true)
+  }
+
+  if (!started || !game) {
+    return (
+      <div className="app">
+        <StartScreen onStart={start} onDaily={startDaily} />
+        <Rewards />
+      </div>
+    )
+  }
+  if (game.phase === 'gameOver') {
+    return (
+      <div className="app">
+        <GameOver />
+        <Rewards />
+      </div>
+    )
+  }
 
   return (
     <div className="app">
