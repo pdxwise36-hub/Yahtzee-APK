@@ -6,6 +6,7 @@ import {
   legalCategories,
   previewScores,
   rollDice,
+  resolveColumn,
   scoreSelection,
   standings,
   toggleHold,
@@ -140,17 +141,20 @@ export const useGameStore = create<GameStore>((set, get) => ({
   score: (category, column) => {
     const { game, rolling, activeColumn, table, dailyKey, match } = get()
     if (!game || rolling) return
+    const target = resolveColumn(currentPlayer(game), column ?? activeColumn)
     if (match) {
-      void match.send({ type: 'score', category, column: column ?? activeColumn })
+      void match.send({ type: 'score', category, column: target })
       return
     }
-    const result = scoreSelection(game, category, column ?? activeColumn)
+    const result = scoreSelection(game, category, target)
     if (result.state === game) return
     table?.setHeld(result.state.dice.map(() => false))
     set({ game: result.state, celebrating: false })
 
     if (result.state.phase === 'gameOver') {
       recordFinishedGame(result.state, dailyKey)
+    } else {
+      set({ activeColumn: resolveColumn(currentPlayer(result.state), get().activeColumn) })
     }
   },
 
@@ -301,7 +305,8 @@ export function useTurnView() {
   if (!game) return null
 
   const player = currentPlayer(game)
-  const card = player.cards[activeColumn] ?? {}
+  const column = resolveColumn(player, activeColumn)
+  const card = player.cards[column] ?? {}
   const values = diceValues(game)
   const hasHand = game.rollsUsed > 0 && !rolling
 
@@ -311,7 +316,7 @@ export function useTurnView() {
     card,
     values,
     rolling,
-    activeColumn,
+    activeColumn: column,
     rollsLeft: game.rules.rollsPerTurn - game.rollsUsed,
     preview: hasHand ? previewScores(values, card, game.rules) : {},
     legal: hasHand ? new Set(legalCategories(values, card, game.rules)) : new Set<CategoryId>(),

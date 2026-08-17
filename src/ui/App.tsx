@@ -13,6 +13,7 @@ import {
 } from '@/state/profileStore'
 import { DiceArea } from './DiceArea'
 import { Scorecard } from './Scorecard'
+import { ColumnTabs } from './ColumnTabs'
 import { Celebration } from './Celebration'
 import { Rewards } from './Rewards'
 import { Lobby } from './Lobby'
@@ -350,6 +351,7 @@ export function App(): JSX.Element {
   return (
     <div className="app">
       <TopBar onHome={requestHome} />
+      <ColumnTabs />
       <Scorecard />
       <Tray />
       <RollBar />

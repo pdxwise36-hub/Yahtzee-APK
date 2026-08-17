@@ -297,6 +297,25 @@ export function scoreSelection(
   return { state: next, score, wasJoker: joker.active, yahtzeeBonus: earnsBonus }
 }
 
+/** Columns this player still has boxes free in. */
+export function openColumns(player: PlayerState): number[] {
+  return player.cards
+    .map((card, i) => (isCardComplete(card) ? -1 : i))
+    .filter((i) => i >= 0)
+}
+
+/** The column a move should actually be scored into.
+ *
+ *  Honours the player's choice while it is still playable, and otherwise
+ *  falls back to a column with boxes free. Without this a multi-column game
+ *  can strand a player on a finished card with no legal move anywhere and no
+ *  way to end the game. */
+export function resolveColumn(player: PlayerState, preferred: number): number {
+  const card = player.cards[preferred]
+  if (card && !isCardComplete(card)) return preferred
+  return openColumns(player)[0] ?? preferred
+}
+
 export function playerTotals(player: PlayerState, rules: RuleSet): ColumnTotals[] {
   return player.cards.map((card, i) =>
     columnTotals(card, rules, player.yahtzeeBonuses[i] ?? 0, rules.columnMultipliers[i] ?? 1),

@@ -1067,3 +1067,61 @@ body {
   justify-content: center;
   max-width: 340px;
 }
+
+/* ---------- column picker (Triple Yahtzee) ---------- */
+
+.columns {
+  display: flex;
+  gap: 7px;
+  flex: none;
+}
+
+.column-tab {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  padding: 6px 4px;
+  font: inherit;
+  color: var(--cream);
+  background: rgba(0, 0, 0, 0.26);
+  border: 2px solid transparent;
+  border-radius: 11px;
+  cursor: pointer;
+  transition: border-color 160ms ease, background 160ms ease, transform 120ms ease;
+}
+
+.column-tab__mult {
+  font-size: 1rem;
+  font-weight: 800;
+  line-height: 1.1;
+}
+
+.column-tab__fill {
+  font-size: 0.62rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  opacity: 0.6;
+  font-variant-numeric: tabular-nums;
+}
+
+.column-tab.is-active {
+  color: var(--ink);
+  background: var(--gold);
+  border-color: #fff;
+  transform: translateY(-1px);
+}
+
+.column-tab.is-active .column-tab__fill {
+  opacity: 0.75;
+}
+
+.column-tab.is-complete {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.column-tab:disabled {
+  cursor: default;
+}

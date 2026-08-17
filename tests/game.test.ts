@@ -11,6 +11,8 @@ import {
   grandTotal,
   standings,
   totalTurns,
+  openColumns,
+  resolveColumn,
   type GameState,
 } from '@/engine/game'
 import { RULE_SETS, ALL_CATEGORIES, type DieValue } from '@/engine/types'
@@ -241,5 +243,43 @@ describe('game completion', () => {
     expect(table[1]?.rank).toBe(2)
     expect(table[2]?.rank).toBe(2)
     expect(grandTotal(state.players[1]!, state.rules)).toBe(30)
+  })
+})
+
+describe('multi-column play', () => {
+  it('reports which columns still have boxes free', () => {
+    let state = createGame('triple', [{ id: 'p', name: 'A' }], 11)
+    expect(openColumns(state.players[0]!)).toEqual([0, 1, 2])
+    for (const category of ALL_CATEGORIES) {
+      state = scoreSelection(withHand(state, [1, 2, 3, 4, 5]), category, 0).state
+    }
+    expect(openColumns(state.players[0]!)).toEqual([1, 2])
+  })
+
+  it('keeps the chosen column while it is still playable', () => {
+    const state = createGame('triple', [{ id: 'p', name: 'A' }], 11)
+    expect(resolveColumn(state.players[0]!, 2)).toBe(2)
+  })
+
+  it('never strands a player on a finished column', () => {
+    // Filling one column used to leave the player with no legal move anywhere,
+    // unable to score or to finish the game.
+    let state = createGame('triple', [{ id: 'p', name: 'A' }], 11)
+    for (const category of ALL_CATEGORIES) {
+      state = scoreSelection(withHand(state, [1, 2, 3, 4, 5]), category, 0).state
+    }
+    expect(state.phase).not.toBe('gameOver')
+    expect(resolveColumn(state.players[0]!, 0)).toBe(1)
+  })
+
+  it('can complete a full three-column game one column at a time', () => {
+    let state = createGame('triple', [{ id: 'p', name: 'A' }], 11)
+    for (let turn = 0; turn < ALL_CATEGORIES.length * 3; turn++) {
+      const player = state.players[0]!
+      const column = resolveColumn(player, 0)
+      const open = ALL_CATEGORIES.filter((c) => player.cards[column]?.[c] === undefined)
+      state = scoreSelection(withHand(state, [1, 2, 3, 4, 5]), open[0]!, column).state
+    }
+    expect(state.phase).toBe('gameOver')
   })
 })
