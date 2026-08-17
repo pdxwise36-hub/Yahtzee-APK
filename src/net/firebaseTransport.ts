@@ -36,6 +36,10 @@ export interface FirebaseConfig {
   authDomain: string
   projectId: string
   appId: string
+  /** Names the underlying Firebase app. Only needed to run two independent
+   *  clients in one process, which the integration check does to play both
+   *  sides of a match. */
+  instanceName?: string
 }
 
 interface MatchDoc {
@@ -107,7 +111,8 @@ export class FirebaseTransport implements Transport {
   private readonly auth: Auth
 
   constructor(config: FirebaseConfig) {
-    this.app = initializeApp(config)
+    const { instanceName, ...options } = config
+    this.app = instanceName ? initializeApp(options, instanceName) : initializeApp(options)
     this.db = getFirestore(this.app)
     this.auth = getAuth(this.app)
   }
