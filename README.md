@@ -57,20 +57,36 @@ construction and each message is a few bytes.
 
 ## Enabling online multiplayer
 
-Online play is optional and dormant until pointed at a backend. Without one
-the game runs fully offline, including AI opponents and daily challenges.
+Online play is optional and dormant until pointed at a backend. Without one the
+game runs fully offline, including AI opponents and daily challenges, and
+neither backend SDK is included in the build at all.
 
-1. Apply `supabase/migrations/0001_multiplayer.sql` to a Supabase project. It
-   creates its own `yahtzee` schema, so it is safe to apply to a project that
-   already hosts something else.
-2. Enable anonymous sign-ins in the project's auth settings. Players get a
-   durable identity without having to register.
-3. Provide the project's credentials at build time:
+Firebase is the default. Supabase is also implemented; see below.
 
-```bash
-VITE_SUPABASE_URL=https://<ref>.supabase.co
-VITE_SUPABASE_ANON_KEY=<anon key>
-```
+1. Create a Firebase project and add a Web app to it.
+2. Turn on **Anonymous** sign-in under Authentication. Players get a durable
+   identity without ever registering.
+3. Create a Firestore database.
+4. Deploy the rules from `firebase/`:
+
+   ```bash
+   cd firebase && firebase deploy --only firestore:rules
+   ```
+
+5. Provide the Web app's config at build time:
+
+   ```bash
+   VITE_FIREBASE_API_KEY=...
+   VITE_FIREBASE_AUTH_DOMAIN=<project>.firebaseapp.com
+   VITE_FIREBASE_PROJECT_ID=<project>
+   VITE_FIREBASE_APP_ID=...
+   ```
+
+To use Supabase instead, apply `supabase/migrations/0001_multiplayer.sql` to a
+project, enable anonymous sign-ins, and set `VITE_SUPABASE_URL` and
+`VITE_SUPABASE_ANON_KEY`. The migration creates its own `yahtzee` schema, so it
+is safe to apply to a project that already hosts something else. Whichever is
+configured wins; Firebase takes precedence if both are.
 
 ### How the multiplayer holds together
 
@@ -98,11 +114,11 @@ means writing one implementation of a six-method interface.
 The only part that needs care is the guarantee that two devices cannot both
 claim the same move. Each candidate expresses it differently:
 
-| Backend  | First-writer-wins                                    |
-| -------- | ---------------------------------------------------- |
-| Supabase | primary key on `(match_id, seq)`                     |
-| Firestore| sequence as document id; `allow create` only         |
-| Appwrite | `createDocument` with an explicit id returns conflict |
+| Backend   | First-writer-wins                                     |
+| --------- | ----------------------------------------------------- |
+| Firestore | sequence as document id; `allow create`, updates denied |
+| Supabase  | primary key on `(match_id, seq)`                      |
+| Appwrite  | `createDocument` with an explicit id returns conflict  |
 
 Backend clients are imported dynamically, so the SDK is a separate chunk that
 downloads only when someone opens the lobby, and is dropped entirely from the

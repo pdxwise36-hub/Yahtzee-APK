@@ -20,27 +20,50 @@ function localPlayerId(): string {
   }
 }
 
-const url = import.meta.env.VITE_SUPABASE_URL
-const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
+// Read as flat constants, not into an object. Vite substitutes each
+// `import.meta.env` reference with a literal at build time, and the bundler
+// can only fold that away and drop the unused backend when the value is used
+// directly. Reading them through an object defeats it, and both SDKs get
+// bundled as unreachable chunks.
+const FIREBASE_API_KEY = import.meta.env.VITE_FIREBASE_API_KEY
+const FIREBASE_AUTH_DOMAIN = import.meta.env.VITE_FIREBASE_AUTH_DOMAIN
+const FIREBASE_PROJECT_ID = import.meta.env.VITE_FIREBASE_PROJECT_ID
+const FIREBASE_APP_ID = import.meta.env.VITE_FIREBASE_APP_ID
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL
+const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY
 
-/** Whether a real backend is configured. When it is not, the lobby still
+/** Whether a real backend is configured. When one is not, the lobby still
  *  opens against an in-process stand-in so the flow can be inspected, and
  *  says plainly that another device cannot join rather than failing later. */
-export const isOnlineConfigured = Boolean(url && anonKey)
+export const isOnlineConfigured = Boolean(
+  (FIREBASE_API_KEY && FIREBASE_AUTH_DOMAIN && FIREBASE_PROJECT_ID && FIREBASE_APP_ID) ||
+    (SUPABASE_URL && SUPABASE_ANON_KEY),
+)
 
 let transportPromise: Promise<Transport> | null = null
 
 /** The backend client is imported only when online play is actually used, so
- *  the SDK stays out of the main bundle for everyone who never opens the
- *  lobby. */
+ *  its SDK stays out of the main bundle for everyone who never opens the
+ *  lobby, and drops out of the build entirely when nothing is configured. */
 async function getTransport(): Promise<Transport> {
   if (!transportPromise) {
-    transportPromise =
-      url && anonKey
-        ? import('@/net/supabaseTransport').then(
-            (module) => new module.SupabaseTransport({ url, anonKey }),
-          )
-        : Promise.resolve(new MemoryTransport())
+    if (FIREBASE_API_KEY && FIREBASE_AUTH_DOMAIN && FIREBASE_PROJECT_ID && FIREBASE_APP_ID) {
+      transportPromise = import('@/net/firebaseTransport').then(
+        (module) =>
+          new module.FirebaseTransport({
+            apiKey: FIREBASE_API_KEY,
+            authDomain: FIREBASE_AUTH_DOMAIN,
+            projectId: FIREBASE_PROJECT_ID,
+            appId: FIREBASE_APP_ID,
+          }),
+      )
+    } else if (SUPABASE_URL && SUPABASE_ANON_KEY) {
+      transportPromise = import('@/net/supabaseTransport').then(
+        (module) => new module.SupabaseTransport({ url: SUPABASE_URL, anonKey: SUPABASE_ANON_KEY }),
+      )
+    } else {
+      transportPromise = Promise.resolve(new MemoryTransport())
+    }
   }
   return transportPromise
 }

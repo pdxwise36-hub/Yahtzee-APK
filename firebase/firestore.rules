@@ -1,0 +1,97 @@
+rules_version = '2';
+
+// Yahtzee online multiplayer.
+//
+// The backend stores intentions, never outcomes: a match is a seed plus an
+// ordered list of moves, and every client derives the dice by replaying that
+// log. So there is nothing here a client could tamper with to change what it
+// rolls, and these rules only have to police who may append what, and when.
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() { return request.auth != null; }
+    function uid() { return request.auth.uid; }
+    function changedKeys() {
+      return request.resource.data.diff(resource.data).affectedKeys();
+    }
+
+    match /matches/{code} {
+
+      function matchStatus() {
+        return get(/databases/$(database)/documents/matches/$(code)).data.status;
+      }
+      function isPlayer() {
+        return exists(/databases/$(database)/documents/matches/$(code)/players/$(uid()));
+      }
+      function seatOf() {
+        return get(/databases/$(database)/documents/matches/$(code)/players/$(uid())).data.seat;
+      }
+
+      // Any signed-in user may look a match up, because that is how joining by
+      // code works. The code is the access control, as with a room code read
+      // out to friends; there are 33 million of them and they are not listed.
+      allow read: if signedIn();
+
+      allow create: if signedIn()
+        && request.resource.data.hostId == uid()
+        && request.resource.data.code == code
+        && request.resource.data.status == 'lobby'
+        && request.resource.data.playerCount == 1;
+
+      // Two narrow updates are permitted and nothing else: the host starting
+      // the match, and a joiner taking the next seat.
+      allow update: if signedIn() && (
+        (
+          resource.data.hostId == uid()
+          && changedKeys().hasOnly(['status'])
+          && resource.data.status == 'lobby'
+          && request.resource.data.status == 'playing'
+        ) || (
+          resource.data.status == 'lobby'
+          && changedKeys().hasOnly(['playerCount'])
+          && request.resource.data.playerCount == resource.data.playerCount + 1
+        )
+      );
+
+      allow delete: if false;
+
+      match /players/{playerId} {
+        allow read: if signedIn();
+
+        // A player may only seat themselves, and only before play starts.
+        //
+        // The `!exists` arm covers the host: their player document is written
+        // in the same transaction that creates the match, and rules evaluate
+        // get() against committed data, so the match is not visible yet at
+        // that moment. Without it, hosting would always be denied.
+        allow create: if signedIn()
+          && playerId == uid()
+          && (
+            !exists(/databases/$(database)/documents/matches/$(code))
+            || matchStatus() == 'lobby'
+          );
+
+        allow update, delete: if false;
+      }
+
+      match /moves/{seq} {
+        allow read: if isPlayer();
+
+        // Append only, for your own seat, in a match that has actually begun.
+        //
+        // Whose turn it is deliberately is not checked here: that would mean
+        // reimplementing the rules of Yahtzee in this file. Instead every
+        // client rejects out-of-turn moves while replaying the log, so a
+        // forged one is ignored everywhere rather than corrupting the match.
+        allow create: if isPlayer()
+          && request.resource.data.seat == seatOf()
+          && request.resource.data.seq == int(seq)
+          && matchStatus() == 'playing';
+
+        // History is a record. Nothing may rewrite it.
+        allow update, delete: if false;
+      }
+    }
+  }
+}
