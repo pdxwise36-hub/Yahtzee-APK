@@ -147,6 +147,7 @@ function drawFace(value: DieValue, skin: DiceSkin, resolution: number): HTMLCanv
   if (skin.decor) drawDecor(ctx, value, skin.decor, resolution)
 
   const pipRadius = resolution * (value === 1 ? 0.125 : 0.092)
+  if (skin.decor) clearForPips(ctx, value, skin.body, pipRadius, resolution)
 
   if (skin.pipShape === 'cheeky') {
     PIP_LAYOUT[value].forEach(([x, y], index) => {
@@ -189,20 +190,20 @@ function drawFace(value: DieValue, skin: DiceSkin, resolution: number): HTMLCanv
   return canvas
 }
 
-/** Where a face's art sits, and how big, as fractions of the face.
+/** How much of the face the art covers, as a fraction of its width.
  *
- *  Each spot is one the standard pip layout leaves empty, so the art and the
- *  number share a face without fighting. Four and six have nothing but a clear
- *  channel down the middle, which is why those two carry the set's mascot at
- *  full size with the pips crossing over it. */
-export const DECOR_LAYOUT: Record<DieValue, { x: number; y: number; size: number }> = {
-  1: { x: 0.26, y: 0.78, size: 0.32 },
-  2: { x: 0.27, y: 0.74, size: 0.34 },
-  3: { x: 0.24, y: 0.76, size: 0.32 },
-  4: { x: 0.5, y: 0.5, size: 0.36 },
-  5: { x: 0.5, y: 0.79, size: 0.28 },
-  6: { x: 0.5, y: 0.5, size: 0.46 },
-}
+ *  The art fills the face and the pips sit on top of it, rather than the two
+ *  sharing the space. Slightly under one so the illustration stops short of
+ *  the rounded edge, where the geometry curves away and would clip it. */
+export const DECOR_SIZE = 0.94
+
+/** How far the clearing behind a pip reaches, as a multiple of the pip radius.
+ *
+ *  A dark pip on a dark part of the illustration would disappear, and a die you
+ *  cannot read is not worth the joke. Each pip knocks a soft hole in the art
+ *  underneath it, in the body colour, so it always has its own ground to sit
+ *  on however busy the face behind it is. */
+export const PIP_CLEARING = 1.6
 
 /** The colour emoji font, which every Android WebView ships and which saves
  *  hand-drawing sixty little illustrations. Named explicitly rather than left
@@ -210,7 +211,7 @@ export const DECOR_LAYOUT: Record<DieValue, { x: number; y: number; size: number
  *  a die with a blank face is worse than no theme at all. */
 const EMOJI_FONT = '"Noto Color Emoji", "Apple Color Emoji", "Segoe UI Emoji", "Twemoji Mozilla", sans-serif'
 
-/** Paint one face's illustration into the space the pips leave free. */
+/** Paint a face's illustration across the whole face. */
 function drawDecor(
   ctx: CanvasRenderingContext2D,
   value: DieValue,
@@ -219,18 +220,43 @@ function drawDecor(
 ): void {
   const glyph = decor[value - 1]
   if (!glyph) return
-  const spot = DECOR_LAYOUT[value]
 
   ctx.save()
-  ctx.font = `${spot.size * resolution}px ${EMOJI_FONT}`
+  ctx.font = `${DECOR_SIZE * resolution}px ${EMOJI_FONT}`
   ctx.textAlign = 'center'
   ctx.textBaseline = 'middle'
-  // A soft contact shadow, so the art sits on the face rather than floating
-  // above it. Without it the flat emoji reads as a sticker.
-  ctx.shadowColor = 'rgba(0,0,0,0.28)'
-  ctx.shadowBlur = resolution * 0.02
-  ctx.shadowOffsetY = resolution * 0.008
-  ctx.fillText(glyph, spot.x * resolution, spot.y * resolution)
+  ctx.shadowColor = 'rgba(0,0,0,0.3)'
+  ctx.shadowBlur = resolution * 0.03
+  ctx.shadowOffsetY = resolution * 0.01
+  ctx.fillText(glyph, resolution / 2, resolution / 2)
+  ctx.restore()
+}
+
+/** Knock a soft hole in the art wherever a pip is about to land. */
+function clearForPips(
+  ctx: CanvasRenderingContext2D,
+  value: DieValue,
+  body: string,
+  pipRadius: number,
+  resolution: number,
+): void {
+  ctx.save()
+  for (const [x, y] of PIP_LAYOUT[value]) {
+    const cx = x * resolution
+    const cy = y * resolution
+    const reach = pipRadius * PIP_CLEARING
+    const clearing = ctx.createRadialGradient(cx, cy, pipRadius * 0.7, cx, cy, reach)
+    // Solid under the pip itself and faded to nothing at the rim, so it reads
+    // as the art lightening around the pip rather than as a disc stuck on it.
+    clearing.addColorStop(0, body)
+    clearing.addColorStop(0.55, body)
+    clearing.addColorStop(1, 'rgba(0,0,0,0)')
+    ctx.globalAlpha = 0.7
+    ctx.fillStyle = clearing
+    ctx.beginPath()
+    ctx.arc(cx, cy, reach, 0, Math.PI * 2)
+    ctx.fill()
+  }
   ctx.restore()
 }
 

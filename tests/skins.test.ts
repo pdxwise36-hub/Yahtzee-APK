@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { DECOR_LAYOUT, PIP_LAYOUT } from '@/dice3d/diceGeometry'
+import { DECOR_SIZE, PIP_CLEARING, PIP_LAYOUT } from '@/dice3d/diceGeometry'
 import { DICE_SKINS } from '@/dice3d/skins'
 import type { DieValue } from '@/engine/types'
 
@@ -39,42 +39,33 @@ describe('dice catalogue', () => {
 })
 
 describe('art placement', () => {
-  // The whole promise of the themed dice is that the pips stay standard and
-  // you can always tell the number at a glance. On the faces with room to
-  // spare, the art has to keep out of the pips' way entirely.
-  it('keeps art clear of the pips wherever the layout leaves room', () => {
-    for (const value of [1, 2, 3, 5] as DieValue[]) {
-      const spot = DECOR_LAYOUT[value]
-      const half = spot.size / 2
-      for (const [px, py] of PIP_LAYOUT[value]) {
-        // Nearest point of the art's box to the pip centre.
-        const nearestX = Math.max(spot.x - half, Math.min(px, spot.x + half))
-        const nearestY = Math.max(spot.y - half, Math.min(py, spot.y + half))
-        const distance = Math.hypot(px - nearestX, py - nearestY)
-        expect(distance).toBeGreaterThanOrEqual(pipRadius(value))
-      }
-    }
+  it('fills the face without running off the rounded edge', () => {
+    expect(DECOR_SIZE).toBeGreaterThan(0.8)
+    expect(DECOR_SIZE).toBeLessThan(1)
   })
 
-  // Four and six leave nothing but a channel down the middle, too narrow for a
-  // mascot. Those two carry the art centred with the pips crossing over it,
-  // which only reads if it is symmetric — an off-centre mascot behind pips
-  // looks like a mistake rather than a design.
-  it('centres the art on the faces where the pips cross over it', () => {
-    for (const value of [4, 6] as DieValue[]) {
-      expect(DECOR_LAYOUT[value].x).toBe(0.5)
-      expect(DECOR_LAYOUT[value].y).toBe(0.5)
-    }
-  })
+  // The art covers the whole face now, so the pips keep their own ground by
+  // knocking a hole in it. That hole has to be wider than the pip to be worth
+  // anything, and narrower than the gap to its neighbour — clearings that meet
+  // stop reading as pips on a picture and start erasing the picture.
+  it('clears enough room for a pip without wiping out the art', () => {
+    expect(PIP_CLEARING).toBeGreaterThan(1)
 
-  it('keeps every face art inside the face', () => {
     for (const value of VALUES) {
-      const spot = DECOR_LAYOUT[value]
-      const half = spot.size / 2
-      expect(spot.x - half).toBeGreaterThanOrEqual(0)
-      expect(spot.y - half).toBeGreaterThanOrEqual(0)
-      expect(spot.x + half).toBeLessThanOrEqual(1)
-      expect(spot.y + half).toBeLessThanOrEqual(1)
+      const pips = PIP_LAYOUT[value]
+      if (pips.length < 2) continue
+      let closest = Infinity
+      for (let i = 0; i < pips.length; i++) {
+        for (let j = i + 1; j < pips.length; j++) {
+          const [ax, ay] = pips[i] as [number, number]
+          const [bx, by] = pips[j] as [number, number]
+          closest = Math.min(closest, Math.hypot(ax - bx, ay - by))
+        }
+      }
+      // The clearing is solid to 55% of its reach and fades out from there,
+      // matching the gradient drawFace paints.
+      const solid = pipRadius(value) * PIP_CLEARING * 0.55
+      expect(solid).toBeLessThan(closest / 2)
     }
   })
 })
