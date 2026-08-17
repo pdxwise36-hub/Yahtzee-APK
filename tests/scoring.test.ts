@@ -153,3 +153,30 @@ describe('totals', () => {
     expect(isCardComplete({ ones: 1 })).toBe(false)
   })
 })
+
+describe('six-dice scoring never counts a sixth die', () => {
+  it('caps the of-a-kind categories at five dice', () => {
+    // Six sixes is 36 raw, but only five dice may ever score.
+    expect(scoreCategory('threeOfAKind', [6, 6, 6, 6, 6, 6], six, false)).toBe(30)
+    expect(scoreCategory('fourOfAKind', [6, 6, 6, 6, 6, 6], six, false)).toBe(30)
+    expect(scoreCategory('chance', [6, 6, 6, 6, 6, 6], six, false)).toBe(30)
+  })
+
+  it('finds a full house among six dice', () => {
+    // Two triples: the best five are a triple plus a pair.
+    expect(scoreCategory('fullHouse', [2, 2, 2, 5, 5, 5], six, false)).toBe(25)
+    // A triple and two spare singles cannot make one.
+    expect(scoreCategory('fullHouse', [2, 2, 2, 4, 5, 6], six, false)).toBe(0)
+  })
+
+  it('finds a straight hiding behind a spare die', () => {
+    expect(scoreCategory('smallStraight', [1, 2, 3, 4, 6, 6], six, false)).toBe(30)
+    expect(scoreCategory('largeStraight', [2, 3, 4, 5, 6, 6], six, false)).toBe(40)
+    expect(scoreCategory('largeStraight', [1, 2, 3, 4, 6, 6], six, false)).toBe(0)
+  })
+
+  it('does not let a sixth die complete a Yahtzee it is not part of', () => {
+    expect(scoreCategory('yahtzee', [4, 4, 4, 4, 5, 5], six, false)).toBe(0)
+    expect(scoreCategory('yahtzee', [4, 4, 4, 4, 4, 5], six, false)).toBe(50)
+  })
+})

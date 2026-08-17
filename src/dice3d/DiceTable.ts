@@ -449,7 +449,12 @@ export class DiceTable {
   }
 
   private computeFraming(): void {
-    const rowWidth = ROW_SPACING * Math.max(2, this.dice.length) + 0.35
+    // The held ring is wider than the die it sits under, so the row has to be
+    // framed by its indicators rather than by the dice, or the outermost
+    // ring is clipped by the edge of the tray.
+    const ringOverhang = DIE_SIZE * 0.84 - ROW_SPACING / 2
+    const rowWidth =
+      ROW_SPACING * Math.max(2, this.dice.length) + Math.max(0.35, ringOverhang * 2 + 0.3)
     this.wideDistance = Math.max(8, this.distanceFor(DEFAULT_TRAY.width + 0.5))
     this.closeDistance = Math.max(5, this.distanceFor(rowWidth))
   }
