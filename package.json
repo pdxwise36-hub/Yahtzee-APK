@@ -13,7 +13,8 @@
     "shots": "node scripts/screenshot.mjs",
     "android:sync": "npm run build && cap sync android",
     "android:open": "cap open android",
-    "android:apk": "npm run android:sync && cd android && ./gradlew assembleDebug"
+    "android:apk": "npm run android:sync && cd android && ./gradlew assembleDebug",
+    "icons": "node scripts/render-icons.mjs"
   },
   "dependencies": {
     "@capacitor/android": "^8.5.0",
