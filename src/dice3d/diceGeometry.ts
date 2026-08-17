@@ -126,6 +126,30 @@ export const DICE_SKINS: Record<string, DiceSkin> = {
     id: 'neon', name: 'Neon', body: '#12121a', pip: '#39ff9e',
     edge: '#05050a', roughness: 0.4, metalness: 0.05,
   },
+  sapphire: {
+    id: 'sapphire', name: 'Sapphire', body: '#1d4fa8', pip: '#e2edff',
+    edge: '#123068', roughness: 0.2, metalness: 0.12,
+  },
+  coral: {
+    id: 'coral', name: 'Coral', body: '#ff6f4d', pip: '#fff2ee',
+    edge: '#b8421f', roughness: 0.3, metalness: 0.04,
+  },
+  amethyst: {
+    id: 'amethyst', name: 'Amethyst', body: '#6d40a6', pip: '#f4e8ff',
+    edge: '#42226a', roughness: 0.22, metalness: 0.14,
+  },
+  silver: {
+    id: 'silver', name: 'Silver', body: '#c9ced6', pip: '#23272e',
+    edge: '#8b9099', roughness: 0.14, metalness: 0.88,
+  },
+  bubblegum: {
+    id: 'bubblegum', name: 'Bubblegum', body: '#ff8fc4', pip: '#4d0f31',
+    edge: '#c75f92', roughness: 0.28, metalness: 0.03,
+  },
+  oak: {
+    id: 'oak', name: 'Oak', body: '#a9713c', pip: '#f7e8d2',
+    edge: '#6d4520', roughness: 0.55, metalness: 0.02,
+  },
 }
 
 /** Blend two hex colours. Used to shade pips without hand-listing variants. */

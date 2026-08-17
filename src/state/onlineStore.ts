@@ -7,6 +7,39 @@ import type { MatchSetup, MatchStatus, Transport } from '@/net/protocol'
 import { useGameStore } from './gameStore'
 
 const PLAYER_KEY = 'yahtzee.playerId'
+const RECENT_KEY = 'yahtzee.recentMatches'
+const RECENT_LIMIT = 8
+
+/** A match this device has taken part in, kept so it can be picked up again.
+ *  Only the identifiers are stored: the match itself is always rebuilt from
+ *  the backend's move log, never from anything cached here. */
+export interface RecentMatch {
+  matchId: string
+  code: string
+  variant: VariantId
+  /** Epoch millis of the last time this device joined or hosted it. */
+  lastPlayed: number
+  opponents: string[]
+}
+
+function loadRecent(): RecentMatch[] {
+  try {
+    const raw = localStorage.getItem(RECENT_KEY)
+    if (!raw) return []
+    const parsed = JSON.parse(raw) as RecentMatch[]
+    return Array.isArray(parsed) ? parsed.slice(0, RECENT_LIMIT) : []
+  } catch {
+    return []
+  }
+}
+
+function saveRecent(matches: RecentMatch[]): void {
+  try {
+    localStorage.setItem(RECENT_KEY, JSON.stringify(matches.slice(0, RECENT_LIMIT)))
+  } catch {
+    // Losing the list costs the player a shortcut, not a game.
+  }
+}
 
 function localPlayerId(): string {
   try {
@@ -76,8 +109,10 @@ export interface OnlineStore {
   client: MatchClient | null
   busy: boolean
   error: string | null
+  recent: RecentMatch[]
 
   setPlayerName: (name: string) => void
+  forget: (matchId: string) => void
   host: (variant: VariantId) => Promise<void>
   join: (code: string) => Promise<void>
   start: () => Promise<void>
@@ -92,8 +127,15 @@ export const useOnlineStore = create<OnlineStore>((set, get) => ({
   client: null,
   busy: false,
   error: null,
+  recent: loadRecent(),
 
   setPlayerName: (name) => set({ playerName: name.slice(0, 16) }),
+
+  forget: (matchId) => {
+    const remaining = get().recent.filter((m) => m.matchId !== matchId)
+    saveRecent(remaining)
+    set({ recent: remaining })
+  },
 
   host: async (variant) => {
     set({ busy: true, error: null })
@@ -106,6 +148,7 @@ export const useOnlineStore = create<OnlineStore>((set, get) => ({
         host: { id: playerId, name: get().playerName },
       })
       await attach(transport, setup, playerId, set)
+      remember(setup, playerId, set)
     } catch (error) {
       set({ error: messageOf(error) })
     } finally {
@@ -123,6 +166,7 @@ export const useOnlineStore = create<OnlineStore>((set, get) => ({
         name: get().playerName,
       })
       await attach(transport, setup, playerId, set)
+      remember(setup, playerId, set)
     } catch (error) {
       set({ error: messageOf(error) })
     } finally {
@@ -190,6 +234,27 @@ const FRIENDLY_ERRORS: [RegExp, string][] = [
   [/already started/i, 'That game has already started.'],
   [/quota|resource-exhausted/i, 'The server is over its usage limit for today.'],
 ]
+
+/** Record a match on this device so it can be resumed from the lobby. The
+ *  list is keyed by match, so rejoining an existing one moves it to the top
+ *  rather than adding a duplicate. */
+function remember(
+  setup: MatchSetup,
+  playerId: string,
+  set: (partial: Partial<OnlineStore>) => void,
+): void {
+  const entry: RecentMatch = {
+    matchId: setup.matchId,
+    code: setup.code,
+    variant: setup.variant,
+    lastPlayed: Date.now(),
+    opponents: setup.players.filter((p) => p.id !== playerId).map((p) => p.name),
+  }
+  const others = loadRecent().filter((m) => m.matchId !== entry.matchId)
+  const updated = [entry, ...others].slice(0, RECENT_LIMIT)
+  saveRecent(updated)
+  set({ recent: updated })
+}
 
 function messageOf(error: unknown): string {
   const raw = error instanceof Error ? error.message : String(error)

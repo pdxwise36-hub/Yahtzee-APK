@@ -168,12 +168,17 @@ function GameOver(): JSX.Element | null {
   )
 }
 
-function TopBar(): JSX.Element | null {
+function TopBar({ onHome }: { onHome: () => void }): JSX.Element | null {
   const view = useTurnView()
   if (!view) return null
 
   return (
     <header className="topbar">
+      <button type="button" className="iconbutton" onClick={onHome} aria-label="Back to menu">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M12 3 2.6 11.2h2.7V21h5.2v-6h3v6h5.2v-9.8h2.7Z" fill="currentColor" />
+        </svg>
+      </button>
       {view.game.players.map((player, i) => (
         <div
           key={player.id}
@@ -257,6 +262,7 @@ export function App(): JSX.Element {
   const runAiTurn = useGameStore((s) => s.runAiTurn)
   const [started, setStarted] = useState(false)
   const [screen, setScreen] = useState<'menu' | 'lobby'>('menu')
+  const [confirmingHome, setConfirmingHome] = useState(false)
   const [opponent, setOpponent] = useState<AiLevel | 'solo'>('solo')
   const onlineStatus = useOnlineStore((s) => s.status)
   const onlineSetup = useOnlineStore((s) => s.setup)
@@ -293,6 +299,23 @@ export function App(): JSX.Element {
     if (isAiTurn) void runAiTurn()
   }, [isAiTurn, game?.currentPlayer, game?.turnNumber, runAiTurn])
 
+  /** Abandon whatever is in progress and return to the menu. An online match
+   *  is left properly rather than merely hidden, so its listener is torn down
+   *  and it can be resumed later from the lobby. */
+  const goHome = (): void => {
+    useOnlineStore.getState().leave()
+    setConfirmingHome(false)
+    setStarted(false)
+    setScreen('menu')
+  }
+
+  const requestHome = (): void => {
+    // Nothing is at stake before the first box is filled.
+    const inProgress = game !== null && game.phase !== 'gameOver' && game.history.length > 0
+    if (inProgress) setConfirmingHome(true)
+    else goHome()
+  }
+
   if (screen === 'lobby' && !onlineActive) {
     return (
       <div className="app">
@@ -326,11 +349,33 @@ export function App(): JSX.Element {
 
   return (
     <div className="app">
-      <TopBar />
+      <TopBar onHome={requestHome} />
       <Scorecard />
       <Tray />
       <RollBar />
       <Celebration />
+      {confirmingHome && (
+        <div className="rewards" role="dialog" aria-label="Leave game">
+          <div className="rewards__panel">
+            <h2 className="rewards__title">Leave this game?</h2>
+            <p className="confirm__body">
+              {onlineActive
+                ? 'You can rejoin it later from the online menu.'
+                : 'This game will not be saved.'}
+            </p>
+            <button type="button" className="button button--primary" onClick={goHome}>
+              Leave
+            </button>
+            <button
+              type="button"
+              className="linkbutton"
+              onClick={() => setConfirmingHome(false)}
+            >
+              Keep playing
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

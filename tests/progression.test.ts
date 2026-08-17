@@ -9,6 +9,7 @@ import {
   type GameSummary,
   type Stats,
 } from '@/progression/achievements'
+import { DICE_SKINS } from '@/dice3d/diceGeometry'
 
 const game = (over: Partial<GameSummary> = {}): GameSummary => ({
   score: 180,
@@ -125,12 +126,31 @@ describe('achievements and rewards', () => {
   it('rewards every dice skin through some achievement', () => {
     const maxed: Stats = {
       ...EMPTY_STATS,
-      gamesPlayed: 99, bestScore: 400, yahtzees: 99,
+      gamesPlayed: 99, gamesWon: 99, bestScore: 400, yahtzees: 99,
       upperBonuses: 99, bestDailyStreak: 99,
       variantsPlayed: ['standard', 'triple', 'sixDice'],
     }
-    expect(unlockedSkins(maxed).sort()).toEqual(
-      ['gold', 'ivory', 'jade', 'midnight', 'neon', 'ruby'],
-    )
+    expect(unlockedSkins(maxed).sort()).toEqual([
+      'amethyst', 'bubblegum', 'coral', 'gold', 'ivory', 'jade',
+      'midnight', 'neon', 'oak', 'ruby', 'sapphire', 'silver',
+    ])
+  })
+})
+
+describe('reward coverage', () => {
+  it('makes every dice skin earnable, and only through one achievement', () => {
+    // A skin nobody can unlock is dead content; two achievements granting the
+    // same skin makes one of them feel like it did nothing.
+    const rewarded = ACHIEVEMENTS
+      .filter((a) => a.reward.kind === 'diceSkin')
+      .map((a) => a.reward.id)
+    expect(new Set(rewarded).size).toBe(rewarded.length)
+
+    const skinIds = Object.keys(DICE_SKINS)
+    const earnable = new Set([...rewarded, 'ivory'])
+    for (const id of skinIds) {
+      expect(earnable.has(id)).toBe(true)
+    }
+    expect(rewarded.every((id) => skinIds.includes(id))).toBe(true)
   })
 })

@@ -1,7 +1,19 @@
 import { useState } from 'react'
 import { RULE_SETS, type VariantId } from '@/engine/types'
 import { normaliseCode } from '@/net/protocol'
+import { RULE_SETS as RULES } from '@/engine/types'
 import { isOnlineConfigured, useOnlineStore } from '@/state/onlineStore'
+
+/** Rough, friendly elapsed time. Precision is not the point here — the list
+ *  only needs to say which game is the one you were just in. */
+function timeAgo(at: number): string {
+  const minutes = Math.max(0, Math.round((Date.now() - at) / 60000))
+  if (minutes < 1) return 'just now'
+  if (minutes < 60) return `${minutes}m ago`
+  const hours = Math.round(minutes / 60)
+  if (hours < 24) return `${hours}h ago`
+  return `${Math.round(hours / 24)}d ago`
+}
 
 /** Create or join a match, then wait for the other players. */
 export function Lobby({ onBack }: { onBack: () => void }): JSX.Element {
@@ -12,6 +24,8 @@ export function Lobby({ onBack }: { onBack: () => void }): JSX.Element {
   const leave = useOnlineStore((s) => s.leave)
   const setPlayerName = useOnlineStore((s) => s.setPlayerName)
 
+  const recent = useOnlineStore((s) => s.recent)
+  const forget = useOnlineStore((s) => s.forget)
   const [code, setCode] = useState('')
   const [variant, setVariant] = useState<VariantId>('standard')
 
@@ -116,10 +130,44 @@ export function Lobby({ onBack }: { onBack: () => void }): JSX.Element {
         </button>
       </div>
 
+      {recent.length > 0 && (
+        <div className="recent">
+          <h3 className="recent__title">Your games</h3>
+          <ul className="recent__list">
+            {recent.map((match) => (
+              <li key={match.matchId}>
+                <button
+                  type="button"
+                  className="recent__resume"
+                  disabled={busy}
+                  onClick={() => void join(match.code)}
+                >
+                  <span className="recent__code">{match.code}</span>
+                  <span className="recent__meta">
+                    {match.opponents.length > 0 ? match.opponents.join(', ') : 'Waiting for players'}
+                    {' · '}
+                    {RULES[match.variant].name}
+                    {' · '}
+                    {timeAgo(match.lastPlayed)}
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  className="recent__forget"
+                  aria-label={`Forget game ${match.code}`}
+                  onClick={() => forget(match.matchId)}
+                >
+                  ×
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
       {!isOnlineConfigured && (
         <p className="lobby__warning">
-          Online play needs a backend. Set VITE_SUPABASE_URL and
-          VITE_SUPABASE_ANON_KEY to enable it.
+          Online play needs a backend to reach another device.
         </p>
       )}
       {error && <p className="lobby__error">{error}</p>}

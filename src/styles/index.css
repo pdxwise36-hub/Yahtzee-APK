@@ -956,3 +956,114 @@ body {
   cursor: pointer;
   opacity: 0.8;
 }
+
+/* ---------- home button, confirm, recent games ---------- */
+
+.iconbutton {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  flex: none;
+  padding: 0;
+  color: var(--cream);
+  background: rgba(0, 0, 0, 0.26);
+  border: 2px solid rgba(255, 255, 255, 0.18);
+  border-radius: 50%;
+  cursor: pointer;
+  transition: transform 120ms ease, background 160ms ease;
+}
+
+.iconbutton svg {
+  width: 20px;
+  height: 20px;
+}
+
+.iconbutton:active {
+  transform: scale(0.92);
+  background: rgba(0, 0, 0, 0.4);
+}
+
+.confirm__body {
+  margin: -4px 0 0;
+  font-size: 0.88rem;
+  line-height: 1.4;
+  opacity: 0.8;
+}
+
+.recent {
+  width: min(340px, 100%);
+}
+
+.recent__title {
+  margin: 0 0 7px;
+  font-size: 0.7rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  opacity: 0.65;
+}
+
+.recent__list {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.recent__list li {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: stretch;
+  gap: 4px;
+}
+
+.recent__resume {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 9px 13px;
+  font: inherit;
+  color: var(--cream);
+  text-align: left;
+  background: rgba(0, 0, 0, 0.26);
+  border: 2px solid rgba(255, 255, 255, 0.12);
+  border-radius: 11px;
+  cursor: pointer;
+  transition: border-color 150ms ease, background 150ms ease;
+}
+
+.recent__resume:active {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.recent__code {
+  font-size: 1rem;
+  font-weight: 800;
+  letter-spacing: 0.18em;
+  color: var(--gold);
+}
+
+.recent__meta {
+  font-size: 0.72rem;
+  opacity: 0.7;
+}
+
+.recent__forget {
+  width: 34px;
+  font: inherit;
+  font-size: 1.1rem;
+  color: var(--cream);
+  background: rgba(0, 0, 0, 0.2);
+  border: none;
+  border-radius: 11px;
+  cursor: pointer;
+  opacity: 0.55;
+}
+
+/* The picker now holds a dozen dice, so it wraps instead of overflowing. */
+.skins {
+  flex-wrap: wrap;
+  justify-content: center;
+  max-width: 340px;
+}
