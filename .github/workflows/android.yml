@@ -1,0 +1,89 @@
+name: Android APK
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build APK
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      # The rules engine, dice physics and AI are all pure logic, so they are
+      # verified here before anything is packaged.
+      - name: Typecheck and test
+        run: |
+          npm run typecheck
+          npm test
+
+      - name: Build web bundle
+        run: npm run build
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Sync web bundle into the Android project
+        run: npx cap sync android
+
+      - name: Build debug APK
+        run: ./gradlew assembleDebug --no-daemon
+        working-directory: android
+
+      # A debug APK installs straight onto a phone with no signing set up,
+      # which is the quickest way to actually play a build.
+      - name: Upload debug APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: yahtzee-debug-apk
+          path: android/app/build/outputs/apk/debug/*.apk
+          if-no-files-found: error
+
+      # A release build is only attempted once a signing key is configured,
+      # so the workflow stays green for anyone who has not set one up.
+      - name: Check for signing key
+        id: signing
+        run: echo "present=${{ secrets.ANDROID_KEYSTORE_BASE64 != '' }}" >> "$GITHUB_OUTPUT"
+
+      - name: Decode keystore
+        if: steps.signing.outputs.present == 'true'
+        run: echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 -d > android/app/release.keystore
+
+      - name: Build signed release APK
+        if: steps.signing.outputs.present == 'true'
+        env:
+          KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          ./gradlew assembleRelease --no-daemon \
+            -Pandroid.injected.signing.store.file="$GITHUB_WORKSPACE/android/app/release.keystore" \
+            -Pandroid.injected.signing.store.password="$KEYSTORE_PASSWORD" \
+            -Pandroid.injected.signing.key.alias="$KEY_ALIAS" \
+            -Pandroid.injected.signing.key.password="$KEY_PASSWORD"
+        working-directory: android
+
+      - name: Upload signed release APK
+        if: steps.signing.outputs.present == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: yahtzee-release-apk
+          path: android/app/build/outputs/apk/release/*.apk
+          if-no-files-found: error
