@@ -11,6 +11,10 @@ export type PipShape = 'dot' | 'cheeky'
 /** Six little illustrations, one per face, indexed by value - 1. */
 export type DecorSet = readonly [string, string, string, string, string, string]
 
+/** Six drawn face textures, one per face, indexed by value - 1. Paths are
+ *  served from `public/`, so they are in the bundle an update ships. */
+export type FaceArtSet = readonly [string, string, string, string, string, string]
+
 export interface DiceSkin {
   id: string
   name: string
@@ -27,6 +31,9 @@ export interface DiceSkin {
    *  on top and keep their standard layout, so the number still reads at a
    *  glance — the joke never costs you the ability to play. */
   decor?: DecorSet
+  /** Drawn illustrations covering each face, in place of `decor`. Same rule:
+   *  the pips are laid over the top and the number always reads. */
+  faceArt?: FaceArtSet
 }
 
 export const DICE_SKINS: Record<string, DiceSkin> = {
@@ -103,9 +110,18 @@ export const DICE_SKINS: Record<string, DiceSkin> = {
     decor: ['💨', '🧻', '🪠', '🚽', '🧼', '💩'],
   },
   squirrel: {
-    id: 'squirrel', name: 'Drunk Squirrel', body: '#f2e7c6', pip: '#3a2a10',
-    edge: '#c7b383', roughness: 0.42, metalness: 0.02,
-    decor: ['🍺', '🥴', '🍻', '🤢', '😵', '🐿️'],
+    // Drawn art rather than emoji. The body colour is taken from the
+    // illustrations' own background so the edges of the cube match the faces.
+    id: 'squirrel', name: 'Drunk Squirrel', body: '#fdd685', pip: '#3a2a10',
+    edge: '#d3a850', roughness: 0.42, metalness: 0.02,
+    faceArt: [
+      '/dice/squirrel/1.webp',
+      '/dice/squirrel/2.webp',
+      '/dice/squirrel/3.webp',
+      '/dice/squirrel/4.webp',
+      '/dice/squirrel/5.webp',
+      '/dice/squirrel/6.webp',
+    ],
   },
   chicken: {
     id: 'chicken', name: 'Angry Chicken', body: '#f8eec2', pip: '#4a3708',

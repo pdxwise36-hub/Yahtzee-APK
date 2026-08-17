@@ -741,6 +741,16 @@ body {
   margin-top: 4px;
 }
 
+/* An illustrated set shows the picture itself in the picker, filling the
+   swatch the way it fills the die face. */
+.skin__art {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: inherit;
+  display: block;
+}
+
 .skin {
   display: grid;
   place-items: center;

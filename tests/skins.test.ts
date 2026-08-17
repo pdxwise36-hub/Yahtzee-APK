@@ -1,3 +1,4 @@
+import { existsSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import { DECOR_SIZE, PIP_CLEARING, PIP_LAYOUT } from '@/dice3d/diceGeometry'
 import { DICE_SKINS } from '@/dice3d/skins'
@@ -28,8 +29,32 @@ describe('dice catalogue', () => {
     // The settings picker draws each set as its sixth face. Two sets sharing
     // that glyph would render as two identical buttons.
     const mascots = Object.values(DICE_SKINS)
-      .flatMap((skin) => (skin.decor ? [skin.decor[5]] : []))
+      .flatMap((skin) => {
+        if (skin.faceArt) return [skin.faceArt[5]]
+        return skin.decor ? [skin.decor[5]] : []
+      })
     expect(new Set(mascots).size).toBe(mascots.length)
+  })
+
+  it('ships a file for every face of an illustrated set', () => {
+    // A path with a typo in it paints nothing and the face stays blank, which
+    // is invisible until the die lands on that number.
+    for (const skin of Object.values(DICE_SKINS)) {
+      if (!skin.faceArt) continue
+      expect(skin.faceArt).toHaveLength(6)
+      for (const source of skin.faceArt) {
+        expect(source.startsWith('/')).toBe(true)
+        expect(existsSync(`public${source}`)).toBe(true)
+      }
+    }
+  })
+
+  it('gives a set illustrations or emoji, not both', () => {
+    // Art wins where both are set, so carrying both means one of them is dead
+    // weight that reads as still being in use.
+    for (const skin of Object.values(DICE_SKINS)) {
+      expect(Boolean(skin.decor) && Boolean(skin.faceArt)).toBe(false)
+    }
   })
 
   it('names every skin distinctly, so the picker can be read aloud', () => {

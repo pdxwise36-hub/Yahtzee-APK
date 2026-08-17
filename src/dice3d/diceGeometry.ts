@@ -1,10 +1,10 @@
 import * as THREE from 'three'
 import type { DieValue } from '@/engine/types'
-import { DICE_SKINS, type DecorSet, type DiceSkin, type PipShape } from './skins'
+import { DICE_SKINS, type DecorSet, type DiceSkin, type FaceArtSet, type PipShape } from './skins'
 
 // Re-exported so callers can keep importing dice from one place.
 export { DICE_SKINS }
-export type { DecorSet, DiceSkin, PipShape }
+export type { DecorSet, DiceSkin, FaceArtSet, PipShape }
 
 /** Which value sits on each face of the cube, in Three.js BoxGeometry
  *  material order: +X, -X, +Y, -Y, +Z, -Z.
@@ -121,14 +121,40 @@ export const PIP_LAYOUT: Record<DieValue, [number, number][]> = {
 
 /** Paint one face of a die: body colour, a soft vignette so the edges read as
  *  curved under flat lighting, and recessed pips. */
-function drawFace(value: DieValue, skin: DiceSkin, resolution: number): HTMLCanvasElement {
+function drawFace(
+  value: DieValue,
+  skin: DiceSkin,
+  resolution: number,
+  art?: CanvasImageSource,
+): HTMLCanvasElement {
   const canvas = document.createElement('canvas')
   canvas.width = resolution
   canvas.height = resolution
+  return paintFace(canvas, value, skin, resolution, art)
+}
+
+/** Paints one face onto a canvas, replacing whatever was there.
+ *
+ *  Separated from creating the canvas so an illustrated face can be repainted
+ *  in place when its image finishes loading, without rebuilding the texture. */
+function paintFace(
+  canvas: HTMLCanvasElement,
+  value: DieValue,
+  skin: DiceSkin,
+  resolution: number,
+  art?: CanvasImageSource,
+): HTMLCanvasElement {
   const ctx = canvas.getContext('2d') as CanvasRenderingContext2D
+  ctx.clearRect(0, 0, resolution, resolution)
 
   ctx.fillStyle = skin.body
   ctx.fillRect(0, 0, resolution, resolution)
+  if (art) {
+    ctx.save()
+    ctx.filter = `brightness(${ART_EXPOSURE})`
+    ctx.drawImage(art, 0, 0, resolution, resolution)
+    ctx.restore()
+  }
 
   const vignette = ctx.createRadialGradient(
     resolution / 2, resolution / 2, resolution * 0.28,
@@ -144,10 +170,13 @@ function drawFace(value: DieValue, skin: DiceSkin, resolution: number): HTMLCanv
   if (skin.grain) drawGrain(ctx, resolution, skin.edge)
   // Art first, pips second: whatever the joke is, it never sits on top of
   // the number.
-  if (skin.decor) drawDecor(ctx, value, skin.decor, resolution)
+  if (skin.decor && !art) drawDecor(ctx, value, skin.decor, resolution)
 
   const pipRadius = resolution * (value === 1 ? 0.125 : 0.092)
-  if (skin.decor) clearForPips(ctx, value, skin.body, pipRadius, resolution)
+  if (skin.decor || skin.faceArt) {
+    const strength = art ? CLEARING_ALPHA.art : CLEARING_ALPHA.decor
+    clearForPips(ctx, value, skin.body, pipRadius, resolution, strength)
+  }
 
   if (skin.pipShape === 'cheeky') {
     PIP_LAYOUT[value].forEach(([x, y], index) => {
@@ -197,6 +226,15 @@ function drawFace(value: DieValue, skin: DiceSkin, resolution: number): HTMLCanv
  *  the rounded edge, where the geometry curves away and would clip it. */
 export const DECOR_SIZE = 0.94
 
+/** How much the illustrations are darkened before they go on a die.
+ *
+ *  The table's key light, its environment and the tone mapping together push a
+ *  pale texture to near-white, which bleached the drawn art to a wash of cream
+ *  while the procedural skins — built around darker body colours — were fine.
+ *  Dimming the picture so the lighting brings it back up keeps the die looking
+ *  like the artwork, and leaves every other skin untouched. */
+const ART_EXPOSURE = 0.72
+
 /** How far the clearing behind a pip reaches, as a multiple of the pip radius.
  *
  *  A dark pip on a dark part of the illustration would disappear, and a die you
@@ -204,6 +242,14 @@ export const DECOR_SIZE = 0.94
  *  underneath it, in the body colour, so it always has its own ground to sit
  *  on however busy the face behind it is. */
 export const PIP_CLEARING = 1.6
+
+/** How opaque that clearing is, by what is behind it.
+ *
+ *  Emoji are saturated and busy and need most of the clearing to guarantee a
+ *  pip reads. Drawn art is paler and quieter, and at full strength the
+ *  clearings stopped looking like pips on a picture and started looking like
+ *  holes punched through it, so there it is barely more than a haze. */
+const CLEARING_ALPHA = { decor: 0.7, art: 0.38 }
 
 /** The colour emoji font, which every Android WebView ships and which saves
  *  hand-drawing sixty little illustrations. Named explicitly rather than left
@@ -239,6 +285,7 @@ function clearForPips(
   body: string,
   pipRadius: number,
   resolution: number,
+  strength: number,
 ): void {
   ctx.save()
   for (const [x, y] of PIP_LAYOUT[value]) {
@@ -251,7 +298,7 @@ function clearForPips(
     clearing.addColorStop(0, body)
     clearing.addColorStop(0.55, body)
     clearing.addColorStop(1, 'rgba(0,0,0,0)')
-    ctx.globalAlpha = 0.7
+    ctx.globalAlpha = strength
     ctx.fillStyle = clearing
     ctx.beginPath()
     ctx.arc(cx, cy, reach, 0, Math.PI * 2)
@@ -324,13 +371,19 @@ function drawGrain(ctx: CanvasRenderingContext2D, resolution: number, edge: stri
 
 /** The six face materials for a die, in BoxGeometry order. */
 export function createDieMaterials(skin: DiceSkin, resolution = 256): THREE.MeshPhysicalMaterial[] {
-  // Shaped pips carry far more detail than a circle and need the extra pixels.
-  const detailed = (skin.pipShape && skin.pipShape !== 'dot') || Boolean(skin.decor)
+  // Shaped pips and drawn art carry far more detail than a circle and need the
+  // extra pixels.
+  const detailed = (skin.pipShape && skin.pipShape !== 'dot') || Boolean(skin.decor) || Boolean(skin.faceArt)
   const size = detailed ? resolution * 2 : resolution
+
   return FACE_VALUES.map((value) => {
-    const texture = new THREE.CanvasTexture(drawFace(value, skin, size))
+    const canvas = drawFace(value, skin, size)
+    const texture = new THREE.CanvasTexture(canvas)
     texture.anisotropy = 8
     texture.colorSpace = THREE.SRGBColorSpace
+
+    if (skin.faceArt) loadFaceArt(skin, value, canvas, texture, size)
+
     return new THREE.MeshPhysicalMaterial({
       map: texture,
       roughness: skin.roughness,
@@ -347,8 +400,38 @@ export function createDieMaterials(skin: DiceSkin, resolution = 256): THREE.Mesh
   })
 }
 
+/** Fetches a face's illustration and repaints the face once it arrives.
+ *
+ *  The die is built and rolling before the images land, so each face starts as
+ *  the plain body colour with its pips and gains the picture a moment later.
+ *  Waiting for six images before showing a die would stall the throw, and a
+ *  failed fetch would leave nothing to show at all; this way the worst case is
+ *  a plain die that still plays. */
+function loadFaceArt(
+  skin: DiceSkin,
+  value: DieValue,
+  canvas: HTMLCanvasElement,
+  texture: THREE.CanvasTexture,
+  size: number,
+): void {
+  const source = skin.faceArt?.[value - 1]
+  if (!source) return
+  const image = new Image()
+  image.decoding = 'async'
+  image.onload = () => {
+    // The texture is gone if the player changed dice while this was in flight.
+    if (texture.userData.retired) return
+    paintFace(canvas, value, skin, size, image)
+    texture.needsUpdate = true
+  }
+  image.src = source
+}
+
 export function disposeMaterials(materials: THREE.MeshPhysicalMaterial[]): void {
   for (const material of materials) {
+    // Marked before disposing, so an illustration still loading does not
+    // repaint a texture that has already been thrown away.
+    if (material.map) material.map.userData.retired = true
     material.map?.dispose()
     material.dispose()
   }
