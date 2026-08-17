@@ -30,6 +30,24 @@ A signed release APK is built automatically once these repository secrets
 exist: `ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD`,
 `ANDROID_KEY_ALIAS`, `ANDROID_KEY_PASSWORD`.
 
+## Updating an installed app
+
+The APK is a browser window around the built web app. Frozen inside the APK
+those files could only change by reinstalling, so the installed app fetches
+them itself instead: on launch it asks the deployment for a manifest, and if a
+newer bundle exists it downloads it and stages it for the next launch. Only
+genuinely native changes — the icon, permissions, a new plugin — still need a
+new APK.
+
+Updates are staged rather than applied on the spot, because swapping the
+bundle reloads the webview and doing that mid-turn would throw away the game
+in front of the player. Every failure path leaves the app on the bundle it
+already has, so an update server that is down or slow costs nothing.
+
+The bundle is published by the same Vercel build that serves the browser
+version, so one push updates both. It is skipped on other builds, or the APK
+would ship a copy of the site inside itself.
+
 ## How it fits together
 
 ```

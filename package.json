@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build",
+    "build": "tsc -b && vite build && node scripts/make-update-bundle.mjs",
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
@@ -19,6 +19,7 @@
   "dependencies": {
     "@capacitor/android": "^8.5.0",
     "@capacitor/core": "^8.5.0",
+    "@capgo/capacitor-updater": "^8.51.13",
     "@supabase/supabase-js": "^2.112.3",
     "cannon-es": "^0.20.0",
     "firebase": "^12.17.1",
@@ -33,6 +34,7 @@
     "@types/react-dom": "^18.3.1",
     "@types/three": "^0.169.0",
     "@vitejs/plugin-react": "^4.3.2",
+    "archiver": "^7.0.1",
     "playwright": "^1.62.1",
     "typescript": "^5.6.3",
     "vite": "^5.4.9",
